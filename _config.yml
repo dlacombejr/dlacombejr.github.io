@@ -2,7 +2,7 @@
 title: Daniel C. LaCombe, Jr
 email: daniel.lacombe.jr@gmail.com
 description: > # this means to ignore newlines until "baseurl:"
-  This is a website for disseminating scientific information and for open discourse with the community at large. 
+  This is Dan's personal website for  sharing and discussing scientific topics through words and code. Come join the discussion.  
 baseurl: "" # the subpath of your site, e.g. /blog/
 url: "http://dlacombejr.github.io" # the base hostname & protocol for your site
 twitter_username: daniellacombejr
