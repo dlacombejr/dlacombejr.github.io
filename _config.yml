@@ -15,8 +15,3 @@ markdown: kramdown
 layout: default
 comments: twitter_username
 ...
-
-page_list:
-	About: '/about'
-	Archive: '/archive'
-	Feed: '''/atom.xml'
