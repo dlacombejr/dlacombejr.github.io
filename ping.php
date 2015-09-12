@@ -17,7 +17,7 @@
 $config = array(
     'site_title' => 'Daniel C. LaCombe, Jr.',
     'site_url'   => 'http://http://dlacombejr.github.io/',
-    'feed_url'   => 'http://hami.sh/feed.xml',
+    'feed_url'   => 'http://http://dlacombejr.github.io/atom.xml',
 
     /* PubSubHubbub
      * If you're not sure, just use this one (it's run by Google) */
