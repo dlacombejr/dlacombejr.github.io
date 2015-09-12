@@ -11,3 +11,7 @@ Upcoming content:
 * Torch7 implementaiton of sparse filtering
 * Particle swarm optimzation notebook
 * Information theory and sparse coding
+
+Updates needed to be made:
+
+* Add connection to linkedin with icon
