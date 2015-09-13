@@ -4,7 +4,7 @@ title: About
 permalink: /about/
 ---
 
-![Just a face photo](/assets/face_8.24.15.jpg)
+![Just a face photo](/assets/panorama_GC.jpg)
 
 I am a Ph.D. student studying the human visual system from a computer vision perspective. My most recent work involves building unsupervised hierarchical networks that self organize similarly to what has been observed in the human brain. 
 

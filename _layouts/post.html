@@ -23,7 +23,7 @@ layout: default
                 {% endif %}
             {% endfor %}
             {% if category %}
-                {% capture category_content %} in <span class="label"><a href="/blog/category/{{ category.slug }}/">{{ category.name }}</a></span>{% endcapture %}
+                {% capture category_content %} in <span class="label" style="background-color:{{ category.color }}"><a href="/blog/category/{{ category.slug }}/">{{ category.name }}</a></span>{% endcapture %}
             {% endif %}
         {% else %}
             {% assign category_content = '' %}
@@ -46,8 +46,10 @@ layout: default
             {% assign tags_content = '' %}
         {% endif %}
 
-        <p id="post-meta">Posted {{ category_content }}{{ tags_content }}</p>
-
+        <p id="post-meta"><i><small>Posted {{ category_content }}{{ tags_content }}</small></i></p>
+<!--         <br>
+ -->       <!--  <center><b>References</b></center>
+         {% bibliography --cited %} -->
 
 </div>
 
