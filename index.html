@@ -16,8 +16,10 @@ layout: default
         </h2>
 
         <ul>
-          {{ post.content | strip_html | truncatewords: 50 }}<br>
-          <a href="{{ post.url }}">Read more...</a><br><br>
+          {{post.excerpt}}
+
+<!--            {{ post.content | truncatewords: 75 }}<br>
+ -->          <a href="{{ post.url }}">Read more...</a><br><br>
        </ul>
 
        </li>

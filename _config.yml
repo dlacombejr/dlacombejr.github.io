@@ -10,3 +10,5 @@ github_username:  dlacombejr
 
 # Build settings
 markdown: kramdown
+
+excerpt_separator: <!--more-->
