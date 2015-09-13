@@ -10,8 +10,3 @@ github_username:  dlacombejr
 
 # Build settings
 markdown: kramdown
-
-...
-layout: default
-comments: twitter_username
-...
