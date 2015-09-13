@@ -135,6 +135,20 @@
     width:         calc(45% - (#{$spacing-unit} / 2));
 }
 
+.footer-nav
+{
+  background: #e8e8e8;
+  font-size: 0.9em;
+  text-align: center;
+}
+
+.footer-nav .page-link
+{
+  display: inline-block;
+  padding: 0 3px;
+  text-transform: lowercase;
+}
+
 @include media-query($on-laptop) {
     .footer-col-1,
     .footer-col-2 {
