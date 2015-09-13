@@ -11,9 +11,7 @@ github_username:  dlacombejr
 # Build settings
 markdown: kramdown
 
-# custsom excerpt separator
-excerpt_separator: <!--more-->
-
+# specify gems
 gems: ['jekyll/scholar']
 
 # jekyll-scholar
@@ -36,3 +34,6 @@ scholar:
   details_link:   Details
 
   query: "@*"
+
+  # custsom excerpt separator
+excerpt_separator: <!--more-->
