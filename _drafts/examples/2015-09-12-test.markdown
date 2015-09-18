@@ -1,7 +1,6 @@
 ---
 layout: post
 title:  "Test"
-date:   2015-09-13 17:02:29
 category: programming
 tags: [jekyll, github]
 ---

@@ -202,3 +202,28 @@ pre {
         }
     }
 }
+
+
+/**
+ * Image settings
+ */
+.image-wrapper {
+    text-align: center;
+    font-style: italic;
+
+    .image-caption {
+        color: $grey-color;
+        margin-top: $spacing-unit / 3;
+    }
+}
+
+
+.image-wrapper-long {
+    text-align: left;
+    font-style: italic;
+
+    .image-caption {
+        color: $grey-color;
+        margin-top: $spacing-unit / 3;
+    }
+}

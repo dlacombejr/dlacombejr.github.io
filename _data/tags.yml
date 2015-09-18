@@ -1,14 +1,11 @@
-- slug: django
-  name: Django
+- slug: sparse-filtering
+  name: Sparse Filtering
 
-- slug: django-template-tags
-  name: Django Template Tags
+- slug: sparse-coding
+  name: Sparse Coding
 
-- slug: font-awesome
-  name: Font Awesome
-
-- slug: icons
-  name: Icons
+- slug: theano
+  name: Theano
 
 - slug: image-processing
   name: Image Processing
@@ -27,3 +24,10 @@
 
 - slug: open-source
   name: Open Source
+
+- slug: LCA
+  name: LCA
+
+- slug: MATLAB
+  name: MATLAB
+
