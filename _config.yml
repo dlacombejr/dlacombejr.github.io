@@ -1,0 +1,47 @@
+# Site settings
+title: Daniel C. LaCombe, Jr
+email: daniel.lacombe.jr@gmail.com
+description: > # this means to ignore newlines until "baseurl:"
+  This is Dan's personal website for  sharing and discussing scientific topics through words and code. Come join the discussion.  
+baseurl: "" # the subpath of your site, e.g. /blog/
+url: "http://dlacombejr.github.io" # the base hostname & protocol for your site
+twitter_username: daniellacombejr
+github_username:  dlacombejr
+highlighter: pygments
+
+# Build settings
+markdown: kramdown
+
+# specify gems
+gems: ['jekyll/scholar']
+
+# gems:
+#   - jekyll-sitemap
+
+# avoid error in Travis CI
+exclude: [vendor]
+
+# jekyll-scholar
+scholar:
+  style: apa
+  locale: en
+
+  sort_by: author
+  order: ascending
+
+  source: ./_bibliography
+  bibliography: references.bib
+  bibliography_template: "{{reference}}"
+
+  replace_strings: true
+  join_strings:    true
+
+  details_dir:    bibliography
+  details_layout: bibtex.html
+  details_link:   Details
+
+  query: "@*"
+
+  # custsom excerpt separator
+excerpt_separator: <!--more-->
+

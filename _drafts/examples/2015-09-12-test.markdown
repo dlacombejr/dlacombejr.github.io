@@ -1,0 +1,43 @@
+---
+layout: post
+title:  "Test"
+category: programming
+tags: [jekyll, github]
+---
+
+
+Here is an example MathJax inline rendering \\( 1/x^{2} \\), and here is a block rendering: 
+\\[ \frac{1}{n^{2}} \\]
+
+$$\frac{x^2}{\sqrt{y+1}}$$
+
+
+$$ 
+P(\mathbf{Y} = \mathbf{y}|\mathbf{X}) = exp[{\theta } ^{T} g(\mathbf{y},\mathbf{X})]/k(\theta ) 
+$$
+
+\begin{equation}
+s_i=\sum_{i=1}^m a_i\phi_i
+\end{equation}
+
+\begin{equation}
+\min_{\mathbf{a}\in\mathbb{R}^m}\vert\vert \mathbf{D}\mathbf{a}-\mathbf{x}\vert\vert^2+\lambda\vert\vert \mathbf{a}\vert\vert_1
+\end{equation}
+
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ornare, leo vel posuere gravida, velit dolor efficitur odio, eu ultricies mauris magna id eros. Aliquam eget nisl non lectus pharetra cursus. Aliquam a ligula lacus. Sed ullamcorper ante ante, non condimentum orci finibus id. Sed tellus felis, bibendum nec orci suscipit, maximus iaculis arcu. Phasellus et diam id mi imperdiet finibus. Ut tempus faucibus tellus eget rhoncus. Donec sed augue ex. Suspendisse vehicula nulla nulla, quis aliquam nibh fringilla vel. Nunc sem magna, accumsan ac suscipit id, varius in odio. Mauris vel lacinia enim. Pellentesque tellus sapien, mattis nec orci vitae, ultricies efficitur diam. Etiam luctus purus tellus, eget vulputate ante posuere sit amet {% cite dayan2003theoretical %}.
+
+
+<!--more-->
+
+
+Duis ullamcorper augue id molestie lobortis. Donec luctus eu tellus ac tincidunt. Phasellus vitae accumsan augue, in aliquet dui. Suspendisse eleifend arcu pretium, viverra massa nec, volutpat urna. Ut semper ligula purus, at scelerisque velit hendrerit quis. Sed iaculis sodales lobortis. Morbi pharetra posuere tristique. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut ut lorem eu mauris eleifend vehicula sed efficitur massa.
+
+Donec gravida id massa at consectetur. In sollicitudin enim a nulla volutpat suscipit. Nam a metus ac nunc ornare pretium. Cras placerat congue nisl, rhoncus tristique orci sodales ac. Maecenas interdum egestas porttitor. Maecenas id commodo lacus, in malesuada purus. Vivamus ac mauris auctor, efficitur metus eget, lobortis mauris. Proin congue tempus purus, in auctor tellus interdum ut. Vivamus ultrices auctor semper. Mauris ultricies pretium est eget consequat. Fusce dignissim massa vitae mauris tristique, a posuere erat sodales. Donec finibus mollis metus id imperdiet.
+
+Curabitur id dapibus erat. Vivamus et faucibus metus. Curabitur diam libero, consectetur condimentum varius et, eleifend ac justo. Etiam lacinia ipsum sed orci consectetur, non mollis turpis volutpat. Nulla porttitor, tellus eget vehicula varius, lorem erat porttitor neque, a laoreet tortor nisi at ligula. Aenean lacus risus, semper vitae cursus nec, finibus eget nunc. Nunc ac congue lorem, ac luctus sem. Fusce cursus vel dolor a pharetra. Nulla ac dapibus eros. Donec eu elementum arcu. Mauris sodales interdum purus eu ullamcorper. Morbi rutrum mattis elit sit amet gravida. Donec ac dignissim est. Nunc aliquam leo feugiat, vehicula ex id, euismod massa.
+
+Vestibulum placerat ex a erat tristique vehicula. Nulla non tincidunt massa, semper mollis massa. Maecenas sed elementum odio, at lacinia lacus. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla consequat interdum eros, a tempor nisl congue vitae. Nulla tempor ornare pharetra. Fusce sit amet venenatis purus. Nullam blandit, nisi nec malesuada luctus, sapien est dictum erat, sit amet dignissim dolor tortor id mauris. Ut sit amet faucibus orci. Curabitur maximus nisl dolor, nec maximus sapien lacinia at. Morbi sed libero eu lacus mattis sodales.
+
+<center><b>References</b></center>
+{% bibliography --cited %}

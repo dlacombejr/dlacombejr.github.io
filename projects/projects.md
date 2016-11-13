@@ -1,0 +1,13 @@
+---
+layout: page
+title: Projects
+permalink: /projects/
+---
+
+### Deep Neural Networks and The Brain
+
+My main project involves developing biologically-realistic [artificial neural networks (aNNs)](https://en.wikipedia.org/wiki/Artificial_neural_network) with parsimonious principles and comparing their behaviors to that which is observed in [biological vision](https://en.wikipedia.org/wiki/Visual_system). Sparse representation models have already demonstrated that the learned receptive fields strongly resemeble those that are observed in physioloical studies. Moreover, using structured sparsity (e.g., block sparsity) in aNNs leads to the self organization of receptive fields in a simulated cortical sheet and said organization closely matches the observed organization in early visual cortex. The research that I conduct flows through the same vien of building structured-sparse representation models to develop theoretical principles behind how the human visual system learns to see. My dissertation research aims to demonstrate that the same structured-sparsity principles that afford translation invariance to identity-preserving translations of objects also allows for the unsupervised learning of taxonomical and thematic semantic relationships between objects. Such evidence would suggest that biological vision can self-organize semantic representations that could perhaps form the foundation of our semantic knowledge upon which language is built. 
+
+### Decoding Procedures for Eye Movements
+
+A secondary area of research that I am involved in is the [decoding](https://en.wikipedia.org/wiki/Decoding) of different properties from [eye movement](https://en.wikipedia.org/wiki/Eye_movement) data. Active vision, and particularly the pattern of eye movement behavior, can be viewed as a coupled system between the observer, the environement, and the current task at hand. As such, patterns of eye movements can be influenced by any of these sources. However, in most applications we are only interested in one of these aspects (e.g., advertising: is this person a prospective customer vs. how effective is my advertisement). As a result the goal is to be invariant with respect to the aspects that are not of interest. Using relatively simple quantitative techniques to extract features from eye movements, my research has demonstrated that an observer's task (e.g., aesthetic judgement vs. visual search) can be classified with modest performance ([VSS poster](/assets/LACOMBE_DANIEL_GPSA2015.pdf)). Challenges for future research are to develop better feature representations and models that take better advantage of the temporal structure of eye movement data. 
