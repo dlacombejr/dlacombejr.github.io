@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Sparse Filtering in Theano</title>
+    <meta name="description" content="This is Dan's personal website for  sharing and discussing scientific topics through words and code. Come join the discussion.  
+">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="http://dlacombejr.github.io/programming/2015/09/13/sparse-filtering-implemenation-in-theano.html">
+    <link rel="alternate" type="application/rss+xml" title="My Site RSS" href="/feed.xml" />
+    <link rel="alternate" type="application/atom+xml" title="" href="/atom.xml" />
+
+</head>
+
+
+  <body>
+
+    <!doctype html>
+<html>
+       <!-- mathjax -->
+       <head>
+        <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+       </head>
+
+
+
+<header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Daniel C. LaCombe, Jr</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+<!--         
+          
+            
+            <a class="page-link" href="/about/">About</a>
+            
+          
+        
+          
+            
+            <a class="page-link" href="/atom.xml">Feed</a>
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+            
+          
+        
+          
+        
+          
+        
+          
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+            
+            <a class="page-link" href="/projects/">Projects</a>
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+         -->
+        <a class="page-link" href="/">Home</a>
+        <a class="page-link" href="/about">About</a>
+        <a class="page-link" href="/projects">Projects</a>
+<!--         <a class="page-link" href="/resume">R&eacute;sum&eacute;</a>
+        <a class="page-link" href="/tags">Tags</a>
+        <a class="page-link" href="/contact">Contact</a>
+ --> 
+       <a class="page-link" href="/cv/lacombe_resume_v2.pdf">R&eacutesum&eacute</a>
+       <a class="page-link" href="/atom.xml">Feed</a>
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <!-- Pygments CSS -->
+    <link href="/css/pygments.css" rel="stylesheet">
+
+    <div class="page-content">
+      <div class="wrapper">
+        
+
+<div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Sparse Filtering in Theano</h1>
+    <p class="post-meta">Sep 13, 2015</p>
+  </header>
+
+  <article class="post-content">
+    <p>Sparse Filtering is a form of unsupervised feature learning that learns a sparse representation of the input data without directly modeling it. This algorithm is attractive because it is essentially hyperparameter-free making it much easier to implement relative to other existing algorithms, such as Restricted Boltzman Machines, which have a large number of them. Here I will review a selection of sparse representation models for computer vision as well as Sparse Filtering’s place within that space and then demonstrate an implementation of the algorithm in Theano combined with the L-BFGS method in SciPy’s optimizaiton library. </p>
+
+<!--more-->
+
+<h2 id="sparse-representation-models-for-computer-vision">Sparse Representation Models for Computer Vision</h2>
+
+<p>Models employing sparsity-inducing norms are ubiquitous in the statistical modeling of images. Their employment is strongly motivated by the inextricably woven web of a sparse code’s efficiency, functionality, and input distribution match — a rather uncanny alignment of properties. Representing an input signal with a few number of active units has obvious benefits in efficient energy usage; the fewer units that can be used to provide a good representation, without breaking the system, the better. A sparse coding scheme also has logically demonstrable functional advantages over the other possible types (i.e., local and dense codes) in that it has high representational and memory capacites (representatoinal capacity grows exponentially with average activity ratio and short codes do not occupy much memory), fast learning (only a few units have to be updated), good fault tolerance (the failure or death of a unit is not entirely crippling), and controlled interference (many representations can be active simultaneously)<a href="#foldiak1995sparse">(Földiák &amp; Young, 1995)</a>. Finally, and perhaps most mysteriously, a sparse code is a good representational scheme because it matches the sparse structure, or non-Gaussianity of natural images <a href="#simoncelli2001natural">(Simoncelli &amp; Olshausen, 2001)</a>. That is, images can be represented as a combination of a sparse number of elements. Because a sparse code matches the sparse distribution of natural scenes, this provides a good statistiacal model of the input, which is useful because…</p>
+
+<blockquote><p>...such models provide the prior probabilities needed in Bayesian inference, or, in general, the prior information that the visual system needs on the environment. These tasks include denoising and completion of missing data. So, sparse coding models are useful for the visual system simply because they provide a better statistical model of the input data.</p><cite><a href="#hyvarinen2009natural">(Hyvärinen, Hurri, &amp; Hoyer, 2009)</a></cite></blockquote>
+
+<h3 id="sparse-coding">Sparse Coding</h3>
+
+<p>In the mid 90s, a seminal article by Olshausen and Field marked the beginning of a proliferation of research in theoretical neuroscience, computer vision, and machine learning more generally. There, they first introduced the computational model of sparse coding <a href="#olshausen1996emergence">(Olshausen &amp; Field, 1996)</a>  and demonstrated the ability to learn units with receptive fields strongly resembling those observed in biological vision when trained on natural images. Sparse coding is based on the assumption that an input image <script type="math/tex">{I(x, y)}</script> can be modeled as a linear combination of sparsely activated representational units <script type="math/tex">{\phi_i(x, y)}</script>:</p>
+
+<p>\begin{equation}
+{I(x, y)} = \sum_i a_i \phi_i(x, y)
+\end{equation}</p>
+
+<p>Given this linear generative model of images, the goal of sparse coding is then to find some representational units <script type="math/tex">{\phi_i(x, y)}</script> that can be used to represent an image using a sparse activity coefficient vector <script type="math/tex">a</script> (i.e., one that has a leptokurtotic distribution with a large peak around zero and heavy tails as can be seen in the figure below). </p>
+
+<p><img src="/assets/sparse_gaussian_comp.png" alt="placeholder" title="Comparison Between Gaussian and non-Gaussian Distribution" /></p>
+
+<p>The optmization problem for finding such a sparse code can be formalized by minimizing the following cost function:</p>
+
+<p>\begin{equation}
+	E = - {\sum_{x, y} \bigg[ {I(x, y)} - \sum_i a_i \phi_i(x, y) \bigg] ^2} - {\sum_i }  S\Big(\frac{a_i} {\sigma}\Big)
+\end{equation}</p>
+
+<p>where <script type="math/tex">S(x)</script> is some non-linear function that penalizes non-sparse activations and <script type="math/tex">\sigma</script> is a scaling constant. We can see that this is basically a combination of a reconstruction error and a sparsity cost, what can be referred to as <em>sparse-penalized least-squares reconstruction</em> and can be generally represented by:</p>
+
+<p>\begin{equation}
+\text{cost = [reconstruction error] + [sparseness]}
+\end{equation}</p>
+
+<p>More generally, this form of problem falls under the more general class of sparse approximation where a good subset of a dictionary <script type="math/tex">\mathbf{D}</script> must be found to reconstruct the data:</p>
+
+<p>\begin{equation}
+\min_{\mathbf{\alpha}\in\mathbb{R}^m}	\frac{1}{2}	\vert\vert \mathbf{x} - \mathbf{D}\alpha\vert\vert^2_2+\lambda\vert\vert \alpha\vert\vert_1
+\end{equation}</p>
+
+<p>However, in this case, <script type="math/tex">\mathbf{D}</script> is not known and thus makes this an unsupervised learning problem. </p>
+
+<!-- ### Independent Components Analysis
+
+Sparse coding can be formalized probabalistically as independent component analysis (ICA), a statistical generative model that produces latent variables assumed to be independent. Consider a set of random variables, $$s_1, ..., s_n$$. We can define the independence between this set of variables formally as a <em>factorizable</em> joint pdf: 
+
+\begin{equation}
+p(s_1, ...,s_n) = \prod p_i(s_i)
+\end{equation}
+
+Thus, knowing any information about the values that a given variable $$s_i$$ gives us no predictive power in estimating the values of any other variable in the set. 
+
+Optimal measure of sparsity is 
+
+\begin{equation}
+h_{opt}(s^2) = \text{log} \, p_s(s)
+\end{equation} -->
+
+<!-- 
+### Universal Cortical Algorithm -->
+
+<h2 id="sparse-filtering">Sparse Filtering</h2>
+
+<p>Sparse Filtering <a href="#ngiam2011sparse">(Ngiam, Chen, Bhaskar, Koh, &amp; Ng, 2011)</a> is an unsupervised learning technique that does not directly model the data (i.e., it has no reconstruction error term in the cost function). The goal of the algorithm is to learn a dictionary <script type="math/tex">\mathbf{D}</script> that provides a sparse representation by minimizing the normalized entries in a feature value matrix. For each iteration of the algorithm: </p>
+
+<ol>
+  <li><script type="math/tex">\ell_2</script> normalization across rows</li>
+  <li><script type="math/tex">\ell_2</script> normalization across columns</li>
+  <li>Objective function = <script type="math/tex">\ell_1</script> norm of normalized entries</li>
+</ol>
+
+<p>The remaining portion of this subsection is an excerpt from <a href="#hahn2015deep">(Hahn, Lewkowitz, Lacombe Jr, &amp; Barenholtz, 2015)</a>:</p>
+
+<p>Let <script type="math/tex">\mathbf{F}</script> be the feature value matrix to be normalized, summed, and minimized. The components </p>
+
+<p>\begin{equation}
+f^{(i)}_j
+\end{equation}</p>
+
+<p>represent the <script type="math/tex">j^{\text{th}}</script> feature value (<script type="math/tex">j^{\text{th}}</script> row) for the <script type="math/tex">i^{\text{th}}</script> example (<script type="math/tex">i^{\text{th}}</script> column), where </p>
+
+<p>\begin{equation}
+f^{(i)}_j=\mathbf{w}_j^T\mathbf{x}^{(i)}
+\end{equation}</p>
+
+<p>Here, the <script type="math/tex">\mathbf{x}^{(i)}</script> are the input patches and  <script type="math/tex">\mathbf{W}</script> is the weight matrix. Initially random, the weight matrix is updated iteratively in order to minimize the Objective Function.</p>
+
+<p>In the first step of the optimization scheme,</p>
+
+<p>\begin{equation}
+\widetilde{\mathbf{f}}_j=\frac{\mathbf{f}_j}{\vert\vert\mathbf{f}_j\vert\vert_2}
+\end{equation}</p>
+
+<p>Each feature row is treated as a vector, and mapped to the unit ball by dividing by its <script type="math/tex">\ell_2</script>-norm. This has the effect of giving each feature approximately the same variance. </p>
+
+<p>The second step is to normalize across the columns, which again maps the entries to the unit ball. This makes the rows about equally active,  introducing competition between the features and thus removing the need for an orthogonal basis. Sparse filtering prevents degenerate situations in which the same features are always active <a href="#ngiam2011sparse">(Ngiam, Chen, Bhaskar, Koh, &amp; Ng, 2011)</a>. </p>
+
+<p>\begin{equation}
+\hat{\mathbf{f}}^{(i)}=\frac{\widetilde{\mathbf{f}}^{(i)}}{\vert\vert\widetilde{\mathbf{f}}^{(i)}\vert\vert_2}
+\end{equation}</p>
+
+<p>The normalized features are optimized for sparseness by minimizing the <script type="math/tex">\ell_1</script> norm. That is, minimize the Objective Function, the sum of the absolute values of all the entries of <script type="math/tex">\mathbf{F}</script>. For datasets of <script type="math/tex">M</script> examples we have the sparse filtering objective:</p>
+
+<!-- \begin{equation}
+ -->
+
+<script type="math/tex; mode=display">\text{minimize}\quad \sum_{i=1}^M \left\vert\left\vert \hat{\mathbf{f}}^{(i)}\right\vert\right\vert_1= \sum_{i=1}^M \left\vert\left\vert \frac{\widetilde{\mathbf{f}}^{(i)}}{\vert\vert\widetilde{\mathbf{f}}^{(i)}\vert\vert_2}\right\vert\right\vert_1</script>
+<!-- \end{equation}
+ -->
+
+<p>The sparse filtering objective is minimized using a Limited-memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) algorithm, a common iterative method for solving unconstrained nonlinear optimization problems.</p>
+
+<h2 id="implementation-in-theano">Implementation in Theano</h2>
+
+<p>Theano is a powerful Python library that allows the user to define and optimize functions that are compiled to machine code for faster run time performance. One of the niceset features of this package is that it performs automatic symbolic differentation. This means we can simply define a model and its cost function and Theano will calculate the gradients for us! This frees the user from analytically deriving the gradients and allows us to explore many different model-cost combinations much more quickly. However, one of the drawbacks of this library is that it does not come prepackaged with more sophisticated optimization algorithms, like L-BFGS. Other Python libraries, such as SciPy’s optimize library do contain these optimization algorithms and here I will show how they can be integrated with Theano to optimize sparse filters with respect to their cost function described above. </p>
+
+<p>First we define a SparseFiter class which performs the normalization scheme formalized above. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno"> 1</span> <span class="kn">import</span> <span class="nn">theano</span>
+<span class="lineno"> 2</span> <span class="kn">from</span> <span class="nn">theano</span> <span class="kn">import</span> <span class="n">tensor</span> <span class="k">as</span> <span class="n">t</span>
+<span class="lineno"> 3</span> 
+<span class="lineno"> 4</span> <span class="k">class</span> <span class="nc">SparseFilter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="lineno"> 5</span> 
+<span class="lineno"> 6</span>     <span class="sd">&quot;&quot;&quot; Sparse Filtering &quot;&quot;&quot;</span>
+<span class="lineno"> 7</span> 
+<span class="lineno"> 8</span>     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+<span class="lineno"> 9</span> 
+<span class="lineno">10</span>         <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno">11</span> <span class="sd">        Build a sparse filtering model.</span>
+<span class="lineno">12</span> 
+<span class="lineno">13</span> <span class="sd">        Parameters:</span>
+<span class="lineno">14</span> <span class="sd">        ----------</span>
+<span class="lineno">15</span> <span class="sd">        w : ndarray</span>
+<span class="lineno">16</span> <span class="sd">            Weight matrix randomly initialized.</span>
+<span class="lineno">17</span> <span class="sd">        x : ndarray (symbolic Theano variable)</span>
+<span class="lineno">18</span> <span class="sd">            Data for model.</span>
+<span class="lineno">19</span> <span class="sd">        &quot;&quot;&quot;</span>
+<span class="lineno">20</span> 
+<span class="lineno">21</span>         <span class="c"># assign inputs to sparse filter</span>
+<span class="lineno">22</span>         <span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">=</span> <span class="n">w</span>
+<span class="lineno">23</span>         <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span>
+<span class="lineno">24</span> 
+<span class="lineno">25</span>     <span class="k">def</span> <span class="nf">feed_forward</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="lineno">26</span> 
+<span class="lineno">27</span>         <span class="sd">&quot;&quot;&quot; Performs sparse filtering normalization procedure &quot;&quot;&quot;</span>
+<span class="lineno">28</span> 
+<span class="lineno">29</span>         <span class="n">f</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>               <span class="c"># initial activation values</span>
+<span class="lineno">30</span>         <span class="n">fs</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">f</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span>              <span class="c"># numerical stability</span>
+<span class="lineno">31</span>         <span class="n">l2fs</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">fs</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>   <span class="c"># l2 norm of row</span>
+<span class="lineno">32</span>         <span class="n">nfs</span> <span class="o">=</span> <span class="n">fs</span> <span class="o">/</span> <span class="n">l2fs</span><span class="o">.</span><span class="n">dimshuffle</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">&#39;x&#39;</span><span class="p">)</span>      <span class="c"># normalize rows</span>
+<span class="lineno">33</span>         <span class="n">l2fn</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">nfs</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>  <span class="c"># l2 norm of column</span>
+<span class="lineno">34</span>         <span class="n">f_hat</span> <span class="o">=</span> <span class="n">nfs</span> <span class="o">/</span> <span class="n">l2fn</span><span class="o">.</span><span class="n">dimshuffle</span><span class="p">(</span><span class="s">&#39;x&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>   <span class="c"># normalize columns</span>
+<span class="lineno">35</span> 
+<span class="lineno">36</span>         <span class="k">return</span> <span class="n">f_hat</span>
+<span class="lineno">37</span> 
+<span class="lineno">38</span>     <span class="k">def</span> <span class="nf">get_cost_grads</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="lineno">39</span> 
+<span class="lineno">40</span>         <span class="sd">&quot;&quot;&quot; Returns the cost and flattened gradients for the layer &quot;&quot;&quot;</span>
+<span class="lineno">41</span> 
+<span class="lineno">42</span>         <span class="n">cost</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">abs_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">feed_forward</span><span class="p">()))</span>
+<span class="lineno">43</span>         <span class="n">grads</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">cost</span><span class="o">=</span><span class="n">cost</span><span class="p">,</span> <span class="n">wrt</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+<span class="lineno">44</span> 
+<span class="lineno">45</span>         <span class="k">return</span> <span class="n">cost</span><span class="p">,</span> <span class="n">grads</span></code></pre></div>
+
+<p>When this object is called, it is initialized with the passed weights and data variables. It also has a <code>feed_forward</code> method for getting the normalized activation values for <script type="math/tex">\mathbf{F}</script> as well as a <code>get_cost_grads</code> method that returns the cost (defined above) and the gradients wrt the cost. Note that in this implementation, the gradients are flattened out; this has to do with making Theano compatible with SciPy’s optimization library as will be described next. </p>
+
+<p>Now we need to define a function that, when called, will compile a Theano training function for the <code>SparseFilter</code> based on it’s cost and gradients at each training step as well as a callable function for SciPy’s optimization procedure that does the following steps:</p>
+
+<ol>
+  <li>Reshape the new weights <code>theta_value</code> consistent with how they are initialized in the model and convert to float32</li>
+  <li>Assign those reshaped and converted weights to the model’s weights</li>
+  <li>Get the cost and the gradients based on the compiled training function</li>
+  <li>Convert the weights back to float64 and return</li>
+</ol>
+
+<p>Note that in step #3, the gradients returned are already vectorized based on the <code>get_cost_grads</code> method of the <code>SparseFilter</code> class for compatability with SciPy’s optimization framework. The code for accomplishing this is as follows: </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno"> 1</span> <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="lineno"> 2</span> 
+<span class="lineno"> 3</span> <span class="k">def</span> <span class="nf">training_functions</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">weight_dims</span><span class="p">):</span>
+<span class="lineno"> 4</span> 
+<span class="lineno"> 5</span>     <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno"> 6</span> <span class="sd">    Construct training functions for the model.</span>
+<span class="lineno"> 7</span> 
+<span class="lineno"> 8</span> <span class="sd">    Parameters:</span>
+<span class="lineno"> 9</span> <span class="sd">    ----------</span>
+<span class="lineno">10</span> <span class="sd">    data : ndarray</span>
+<span class="lineno">11</span> <span class="sd">        Training data for unsupervised feature learning.</span>
+<span class="lineno">12</span> 
+<span class="lineno">13</span> <span class="sd">    Returns:</span>
+<span class="lineno">14</span> <span class="sd">    -------</span>
+<span class="lineno">15</span> <span class="sd">    train_fn : list</span>
+<span class="lineno">16</span> <span class="sd">        Callable training function for L-BFGS.</span>
+<span class="lineno">17</span> <span class="sd">    &quot;&quot;&quot;</span>
+<span class="lineno">18</span> 
+<span class="lineno">19</span>     <span class="c"># compile the Theano training function</span>
+<span class="lineno">20</span>     <span class="n">cost</span><span class="p">,</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get_cost_grads</span><span class="p">()</span>
+<span class="lineno">21</span>     <span class="n">fn</span> <span class="o">=</span> <span class="n">theano</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">[],</span> <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">cost</span><span class="p">,</span> <span class="n">grads</span><span class="p">],</span>
+<span class="lineno">22</span>                          <span class="n">givens</span><span class="o">=</span><span class="p">{</span><span class="n">model</span><span class="o">.</span><span class="n">x</span><span class="p">:</span> <span class="n">data</span><span class="p">},</span> <span class="n">allow_input_downcast</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="lineno">23</span> 
+<span class="lineno">24</span>     <span class="k">def</span> <span class="nf">train_fn</span><span class="p">(</span><span class="n">theta_value</span><span class="p">):</span>
+<span class="lineno">25</span> 
+<span class="lineno">26</span>         <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno">27</span> <span class="sd">        Creates a shell around training function for L-BFGS optimization</span>
+<span class="lineno">28</span> <span class="sd">        algorithm such that weights are reshaped before calling Theano</span>
+<span class="lineno">29</span> <span class="sd">        training function and outputs of Theano training function are</span>
+<span class="lineno">30</span> <span class="sd">        converted to float64 for SciPy optimization procedure.</span>
+<span class="lineno">31</span> 
+<span class="lineno">32</span> <span class="sd">        Parameters:</span>
+<span class="lineno">33</span> <span class="sd">        ----------</span>
+<span class="lineno">34</span> <span class="sd">        theta_value : ndarray</span>
+<span class="lineno">35</span> <span class="sd">            Output of SciPy optimization procedure (vectorized).</span>
+<span class="lineno">36</span> 
+<span class="lineno">37</span> <span class="sd">        Returns:</span>
+<span class="lineno">38</span> <span class="sd">        -------</span>
+<span class="lineno">39</span> <span class="sd">        c : float64</span>
+<span class="lineno">40</span> <span class="sd">            The cost value for the model at a given iteration.</span>
+<span class="lineno">41</span> <span class="sd">        g : float64</span>
+<span class="lineno">42</span> <span class="sd">            The vectorized gradients of all weights</span>
+<span class="lineno">43</span> <span class="sd">        &quot;&quot;&quot;</span>
+<span class="lineno">44</span> 
+<span class="lineno">45</span>         <span class="c"># reshape the theta value for Theano and convert to float32</span>
+<span class="lineno">46</span>         <span class="n">theta_value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">theta_value</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">weight_dims</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+<span class="lineno">47</span>                                                      <span class="n">weight_dims</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+<span class="lineno">48</span>                                  <span class="n">dtype</span><span class="o">=</span><span class="n">theano</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">floatX</span><span class="p">)</span>
+<span class="lineno">49</span> 
+<span class="lineno">50</span>         <span class="c"># assign the theta value to weights</span>
+<span class="lineno">51</span>         <span class="n">model</span><span class="o">.</span><span class="n">w</span><span class="o">.</span><span class="n">set_value</span><span class="p">(</span><span class="n">theta_value</span><span class="p">,</span> <span class="n">borrow</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="lineno">52</span> 
+<span class="lineno">53</span>         <span class="c"># get the cost and vectorized grads</span>
+<span class="lineno">54</span>         <span class="n">c</span><span class="p">,</span> <span class="n">g</span> <span class="o">=</span> <span class="n">fn</span><span class="p">()</span>
+<span class="lineno">55</span> 
+<span class="lineno">56</span>         <span class="c"># convert values to float64 for SciPy</span>
+<span class="lineno">57</span>         <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="lineno">58</span>         <span class="n">g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="lineno">59</span> 
+<span class="lineno">60</span>         <span class="k">return</span> <span class="n">c</span><span class="p">,</span> <span class="n">g</span>
+<span class="lineno">61</span> 
+<span class="lineno">62</span>     <span class="k">return</span> <span class="n">train_fn</span></code></pre></div>
+
+<p>Now that we have the model defined and the training environment, we can build the model and visualize what it learns. First we read in some data and preprocess it by centering the mean at zero and whitening to remove pairwise correlations. Finally we convert the data to float32 for GPU compatability. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno">1</span> <span class="kn">from</span> <span class="nn">scipy.io</span> <span class="kn">import</span> <span class="n">loadmat</span>
+<span class="lineno">2</span> <span class="kn">from</span> <span class="nn">scipy.cluster.vq</span> <span class="kn">import</span> <span class="n">whiten</span>
+<span class="lineno">3</span> 
+<span class="lineno">4</span> <span class="n">data</span> <span class="o">=</span> <span class="n">loadmat</span><span class="p">(</span><span class="s">&quot;patches.mat&quot;</span><span class="p">)[</span><span class="s">&#39;X&#39;</span><span class="p">]</span> 		<span class="c"># load in the data</span>
+<span class="lineno">5</span> <span class="n">data</span> <span class="o">-=</span> <span class="n">data</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>			<span class="c"># center data at mean</span>
+<span class="lineno">6</span> <span class="n">data</span> <span class="o">=</span> <span class="n">whiten</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>				<span class="c"># whiten the data</span>
+<span class="lineno">7</span> <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>			<span class="c"># convert to float32</span></code></pre></div>
+
+<p>Next we define the model variables, including the network architecture (i.e., number of neurons and their weights), the initial weights themselves, and a symbolic variable for the data. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno">1</span> <span class="kn">from</span> <span class="nn">init</span> <span class="kn">import</span> <span class="n">init_weights</span>
+<span class="lineno">2</span> 
+<span class="lineno">3</span> <span class="n">weight_dims</span> <span class="o">=</span> <span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>       		<span class="c"># network architecture</span>
+<span class="lineno">4</span> <span class="n">w</span> <span class="o">=</span> <span class="n">init_weights</span><span class="p">(</span><span class="n">weight_dims</span><span class="p">)</span>   		<span class="c"># random weights</span>
+<span class="lineno">5</span> <span class="n">x</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">fmatrix</span><span class="p">()</span>                 		<span class="c"># symbolic variable for data</span></code></pre></div>
+
+<p>The imported method <code>init_weights</code> simply generates random weights with zero mean and unit variance. In addition, these weights are deemed “shared” variables so that they can be updated across all function that they appear in and are designated as float32 for GPU compatability. With this in place, we can then build the Sparse Filtering model and the training functions for its optimization. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno">1</span> <span class="n">model</span> <span class="o">=</span> <span class="n">SparseFilter</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+<span class="lineno">2</span> <span class="n">train_fn</span> <span class="o">=</span> <span class="n">training_functions</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">weight_dims</span><span class="p">)</span></code></pre></div>
+
+<p>Finally, we can train the model using SciPy’s optimization library. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno">1</span> <span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">minimize</span>
+<span class="lineno">2</span> 
+<span class="lineno">3</span> <span class="n">weights</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span><span class="n">train_fn</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">w</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span>
+<span class="lineno">4</span>                    <span class="n">method</span><span class="o">=</span><span class="s">&#39;L-BFGS-B&#39;</span><span class="p">,</span> <span class="n">jac</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+<span class="lineno">5</span>                    <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;maxiter&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span> <span class="s">&#39;disp&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">})</span></code></pre></div>
+
+<p>With the maximum number of iterations set at 100, this algorithm converges well under a minute. We can then visualize the representations that it has learned by grabbing the final weights and reshaping them. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno">1</span> <span class="kn">import</span> <span class="nn">visualize</span>
+<span class="lineno">2</span> 
+<span class="lineno">3</span> <span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">weight_dims</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">weight_dims</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+<span class="lineno">4</span> <span class="n">visualize</span><span class="o">.</span><span class="n">drawplots</span><span class="p">(</span><span class="n">weights</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">,</span> <span class="s">&#39;n&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></code></pre></div>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/sf_weights.png" alt="sf_weights" />
+    
+    
+        <p class="image-caption">Sparse Filtering Weights</p>
+    
+</div>
+
+<p>As we can see, Sparse Filtering learns edge-like feature detectors even withough modeling the data directly. Similar outcomes can also be acquired using standard gradient descent methods. </p>
+
+<h2 id="references">References</h2>
+
+<!-- ## Limitations
+ -->
+<!-- <center><b>References</b></center>
+ -->
+<ol class="bibliography"><li><span id="foldiak1995sparse">Földiák, P., &amp; Young, M. P. (1995). Sparse coding in the primate cortex. <i>The Handbook of Brain Theory and Neural Networks</i>, <i>1</i>, 1064–1068.</span></li>
+<li><span id="hahn2015deep">Hahn, W. E., Lewkowitz, S., Lacombe Jr, D. C., &amp; Barenholtz, E. (2015). Deep learning human actions from video via sparse filtering and locally competitive algorithms. <i>Multimedia Tools And Applications</i>, 1–14.</span></li>
+<li><span id="hyvarinen2009natural">Hyvärinen, A., Hurri, J., &amp; Hoyer, P. O. (2009). <i>Natural Image Statistics: A Probabilistic Approach to Early Computational Vision.</i> (Vol. 39). Springer Science &amp; Business Media.</span></li>
+<li><span id="ngiam2011sparse">Ngiam, J., Chen, Z., Bhaskar, S. A., Koh, P. W., &amp; Ng, A. Y. (2011). Sparse filtering. In <i>Advances in Neural Information Processing Systems</i> (pp. 1125–1133).</span></li>
+<li><span id="olshausen1996emergence">Olshausen, B. A., &amp; Field, D. J. (1996). Emergence of simple-cell receptive field properties by learning a sparse code for natural images. <i>Nature</i>, <i>381</i>(6583), 607–609.</span></li>
+<li><span id="simoncelli2001natural">Simoncelli, E. P., &amp; Olshausen, B. A. (2001). Natural image statistics and neural representation. <i>Annual Review of Neuroscience</i>, <i>24</i>(1), 1193–1216.</span></li></ol>
+
+  </article>
+
+
+        
+            
+                
+            
+                
+                    
+                
+            
+            
+                
+            
+        
+
+        
+            
+            
+                
+                    
+                        
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                
+                    
+                    
+                
+            
+                
+                    
+                
+                    
+                        
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                
+                    
+                    
+                
+            
+                
+                    
+                
+                    
+                
+                    
+                        
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                
+                    
+                    
+                
+            
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                        
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                
+                    
+                    
+                
+            
+        
+
+        <p id="post-meta"><i><small>Posted  in <span class="label" style="background-color:#CEE3F6"><a href="/blog/category/programming/">Programming</a></span> with tags<i class="fa fa-tags"></i>: <a href="/blog/tag/sparse-filtering/">Sparse Filtering</a>, <a href="/blog/tag/sparse-coding/">Sparse Coding</a>, <a href="/blog/tag/theano/">Theano</a>, <a href="/blog/tag/python/">Python</a></small></i></p>
+
+</div>
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES * * */
+    var disqus_shortname = 'dlacombejr';
+    
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-67244612-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+      </div>
+    </div>
+
+    <div class="footer-nav">
+  <a class="page-link" href="/">home</a>
+  <a class="page-link" href="/about">about</a>
+  <a class="page-link" href="/projects">projects</a>
+  <a class="page-link" href="/cv/lacombe_CV.pdf">CV</a>
+  <a class="page-link" href="/atom.xml">Feed</a>
+</div>
+
+<footer class="site-footer">
+
+  <div class="wrapper">
+
+<!--     <h2 class="footer-heading">Daniel C. LaCombe, Jr</h2>
+ -->
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Daniel C. LaCombe, Jr</li>
+          <li><a href="mailto:daniel.lacombe.jr@gmail.com">daniel.lacombe.jr@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/dlacombejr">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">dlacombejr</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/daniellacombejr">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">daniellacombejr</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">This is Dan's personal website for  sharing and discussing scientific topics through words and code. Come join the discussion.  
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-67244612-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+<!-- mathjax -->
+<!-- <script type="text/javascript" src'"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMMl"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({tex2jax: {inlineMath: [['$', '$''], ['\\(','\\)']]}});
+</script? -->

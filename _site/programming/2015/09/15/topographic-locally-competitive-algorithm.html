@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Topographic Locally Competitive Algorithm</title>
+    <meta name="description" content="This is Dan's personal website for  sharing and discussing scientific topics through words and code. Come join the discussion.  
+">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="http://dlacombejr.github.io/programming/2015/09/15/topographic-locally-competitive-algorithm.html">
+    <link rel="alternate" type="application/rss+xml" title="My Site RSS" href="/feed.xml" />
+    <link rel="alternate" type="application/atom+xml" title="" href="/atom.xml" />
+
+</head>
+
+
+  <body>
+
+    <!doctype html>
+<html>
+       <!-- mathjax -->
+       <head>
+        <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+       </head>
+
+
+
+<header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Daniel C. LaCombe, Jr</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+<!--         
+          
+            
+            <a class="page-link" href="/about/">About</a>
+            
+          
+        
+          
+            
+            <a class="page-link" href="/atom.xml">Feed</a>
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+            
+          
+        
+          
+        
+          
+        
+          
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+            
+            <a class="page-link" href="/projects/">Projects</a>
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+         -->
+        <a class="page-link" href="/">Home</a>
+        <a class="page-link" href="/about">About</a>
+        <a class="page-link" href="/projects">Projects</a>
+<!--         <a class="page-link" href="/resume">R&eacute;sum&eacute;</a>
+        <a class="page-link" href="/tags">Tags</a>
+        <a class="page-link" href="/contact">Contact</a>
+ --> 
+       <a class="page-link" href="/cv/lacombe_resume_v2.pdf">R&eacutesum&eacute</a>
+       <a class="page-link" href="/atom.xml">Feed</a>
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <!-- Pygments CSS -->
+    <link href="/css/pygments.css" rel="stylesheet">
+
+    <div class="page-content">
+      <div class="wrapper">
+        
+
+<div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Topographic Locally Competitive Algorithm</h1>
+    <p class="post-meta">Sep 15, 2015</p>
+  </header>
+
+  <article class="post-content">
+    <p>Recent studies have shown that, in addition to the emergence of receptive fields similar to those observed in biological vision using <a href="http://dlacombejr.github.io/programming/2015/09/13/sparse-filtering-implemenation-in-theano.html">sparse representation models</a>, the self organization of said receptive fields can emerge from group sparsity constraints. Here I will briefly review research demonstrating topological organization of receptive fields using group sparsity principles and then describe a two-layer model implemented in a Locally Comptetitive Algorithm that will be termed Topographical Locally Competitive Algorithm (tLCA). </p>
+
+<!--more-->
+
+<h2 id="topographic-organization-of-receptive-fields">Topographic Organization of Receptive Fields</h2>
+
+<p>In biological vision, receptive fields in early visual cortex are organized into orientation columns where adjacent columns have selectivity close in feature space. The global appearance of selectivity to oreintation across the coritical sheet is that of smooth transitions between orientation preference of columns and the classic <em>pinwheel</em> features where orientation column selectivities meet at a <em>singularity</em> (see image below). </p>
+
+<!-- {:refdef: style="text-align: center;"}
+![placeholder](/assets/orientation_columns.png "Orientation Dominance Columns")
+{: refdef} -->
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+    <a href="http://www.ib.cnea.gov.ar/~redneu/2013/BOOKS/Principles%20of%20Neural%20Science%20-%20Kandel/gateway.ut.ovid.com/gw2/ovidweb.cgisidnjhkoalgmeho00dbookimagebookdb_7c_2fc~33.htm" title="Orientation Dominance Columns" target="_blank">
+    
+        <img src="/assets/orientation_columns.png" alt="Orientation Dominance Columns" />
+    
+    </a>
+    
+    
+        <p class="image-caption">Orientation dominance columns across the cortical surface</p>
+    
+</div>
+
+<p>A large amount of computational research has explored the mechanisms underlying such organization <a href="#swindale1996development">(Swindale, 1996)</a>. More recent research has learned the self-organization of feature detectors based on the natural statistics of images when structured sparsity is imposed <a href="#hyvarinen2001topographic">(Hyvärinen, Hoyer, &amp; Inki, 2001; Jia &amp; Karayev, 2010; Kavukcuoglu, Ranzato, Fergus, &amp; Le-Cun, 2009; Welling, Osindero, &amp; Hinton, 2002)</a>.<sup id="fnref:fn-biological_accuracy"><a href="#fn:fn-biological_accuracy" class="footnote">1</a></sup> Most of these models involve a two layers where the activations of the first layer are square rectified and projected up to a second layer based on locally defined connections. If we have activations <script type="math/tex">a^{(1)}</script> in the first layer given by:</p>
+
+<p>\begin{equation}
+a^{(1)} = \mathbf{w}^T \mathbf{x}
+\end{equation}</p>
+
+<p>where <script type="math/tex">\mathbf{w}</script> is the weight matrix and <script type="math/tex">\mathbf{x}</script> is the input data, these can then be projected up to a second layer unit <script type="math/tex">a_i^{(2)}</script> given the local connections defined by <script type="math/tex">k</script> overlapping neighborhoods <script type="math/tex">H</script>:</p>
+
+<p>\begin{equation}
+a_i^{(2)} = \sqrt{\sum_{j \in H_i} (a^{(1)}_j)^2	}
+\end{equation}</p>
+
+<p>Thus, the activation of each unit in the second level is the sum of sqares of adjacent units in the first layer as defined by a local connectivity matrix that can either be binary or have some distribution across the nieghborhood (below is an example of 3 X 3 overlapping neighborhoods). </p>
+
+<!-- {:refdef: style="text-align: center;"}
+![](/assets/grouping2.png)
+{: refdef}
+ -->
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/grouping2.png" alt="Grouping" />
+    
+    
+        <p class="image-caption">An example showing 3x3 overlapping neighborhoods</p>
+    
+</div>
+
+<p>To avoid edge artifacts, these neighborhoods are also commonly defined to be toroidal so that each unit in a given layer has an equal number of neighbors. </p>
+
+<!-- {:refdef: style="text-align: center;"}
+![](/assets/Torus_from_rectangle.gif)
+{: refdef}
+ -->
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+    <a href="https://en.wikipedia.org/wiki/File:Torus_from_rectangle.gif" title="torus" target="_blank">
+    
+        <img src="/assets/Torus_from_rectangle.gif" alt="torus" />
+    
+    </a>
+    
+    
+        <p class="image-caption">Demonstration of converting 2d plane to torus</p>
+    
+</div>
+
+<p>Thus the optimization objective for a <em>sparse-penalized least-squares reconstruction</em> model with the aforementioned architecture would be:</p>
+
+<p>\begin{equation}
+\min_{\mathbf{\alpha}\in\mathbb{R}^m}	\vert\vert \mathbf{x} - \mathbf{w}^T a^{(1)} \vert\vert^2_2+\lambda\vert\vert 	a^{(1)}	+a^{(2)}  \vert\vert_1
+\end{equation}</p>
+
+<p>where, as before, <script type="math/tex">\lambda</script> is a sparsity tradeoff parameter. </p>
+
+<h2 id="self-organization-of-receptive-fields-using-locally-competitive-algorithms">Self-Organization of Receptive Fields using Locally Competitive Algorithms</h2>
+
+<h3 id="locally-competitive-algorithm">Locally Competitive Algorithm</h3>
+
+<p>Locally competitive algorithms <a href="#rozell2007locally">(Rozell, Johnson, Baraniuk, &amp; Olshausen, 2007)</a> are dynamic models that are implementable in hardware and converge to good solutions for sparse approximation.  In these models, each unit has an state <script type="math/tex">u_m(t)</script>, and when presented with a stimulus <script type="math/tex">s(t)</script>, each unit begins accumulating activity that leaks out over time (much like a bucket with small holes on the bottom). When units reach a threshold <script type="math/tex">\lambda</script>, they begin exerting inhibition over their competitors weighted by some function based on similarity or proximity in space. The states of a given unit <script type="math/tex">m</script> is represented by the nonlinear ordinary differential equaion</p>
+
+<script type="math/tex; mode=display">\dot{u}_m(t)=\frac{1}{\tau}\bigg[b_m(t)-u_m(t)-\sum_{n\neq m}G_{m,n}a_n(t)\bigg] </script>
+
+<p>where <script type="math/tex">b_m(t)=\langle\phi_m,{x}(t)\rangle</script> represents increased activation proportional to the receptive field’s similarity to the incoming input. The internal states of each unit and thus the degree of inhibition that they can exert are expressed by a hard thresholding function which simply means that if the state of a unit is below the threshold, its internal state is zero, and if the state is above threshold, it’s internal state is a linear function of <script type="math/tex">u</script>. This inhibition is finally wieghted based on the similarity between two units <script type="math/tex">G_{m,n}=\langle\phi_m,\phi_n\rangle</script> ensuring that redundant feature representations are not used for any given input and a sparse approximation is achieved. </p>
+
+<p>A simple implementation of LCA in MATLAB is as follows (more details given later in post):</p>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno"> 1</span> <span class="k">function</span><span class="w"> </span>[a] <span class="p">=</span><span class="w"> </span><span class="nf">LCA</span><span class="p">(</span>W, X, neurons, batch_size, thresh<span class="p">)</span><span class="w"></span>
+<span class="lineno"> 2</span> 
+<span class="lineno"> 3</span> <span class="c">% get activation values (b) and similarity values (G)</span>
+<span class="lineno"> 4</span> <span class="n">b</span> <span class="p">=</span> <span class="n">W</span><span class="o">&#39;</span> <span class="o">*</span> <span class="n">X</span><span class="p">;</span>                                 <span class="c">% [neurons X examples]</span>
+<span class="lineno"> 5</span> <span class="n">G</span> <span class="p">=</span> <span class="n">W</span><span class="o">&#39;*</span> <span class="n">W</span> <span class="o">-</span> <span class="nb">eye</span><span class="p">(</span><span class="n">neurons</span><span class="p">);</span>                   <span class="c">% [neurons X neurons]</span>
+<span class="lineno"> 6</span> 
+<span class="lineno"> 7</span> <span class="c">% LCA </span>
+<span class="lineno"> 8</span> <span class="n">u</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">neurons</span><span class="p">,</span><span class="n">batch_size</span><span class="p">);</span>              <span class="c">% unit states</span>
+<span class="lineno"> 9</span> <span class="k">for</span> <span class="n">l</span> <span class="p">=</span><span class="mi">1</span><span class="p">:</span><span class="mi">10</span>
+<span class="lineno">10</span>     <span class="n">a</span> <span class="p">=</span> <span class="n">u</span> <span class="o">.*</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">u</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">);</span>             <span class="c">% internal activations</span>
+<span class="lineno">11</span>     <span class="n">u</span> <span class="p">=</span> <span class="mf">0.9</span> <span class="o">*</span> <span class="n">u</span> <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="p">(</span><span class="n">b</span> <span class="o">-</span> <span class="n">G</span> <span class="o">*</span> <span class="n">a</span><span class="p">);</span>       <span class="c">% update unit states</span>
+<span class="lineno">12</span> <span class="k">end</span>
+<span class="lineno">13</span> <span class="n">a</span> <span class="p">=</span> <span class="n">u</span> <span class="o">.*</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">u</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">);</span>                 <span class="c">% [groups, batch_size]</span></code></pre></div>
+
+<p>The distribution of activation across both the population and examples is very sparsely distributed, with most activation values at zero, and only very few greater-than-zero values. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/LCA_activation2.png" alt="LCA_activation" />
+    
+    
+        <p class="image-caption">Activation distribution and sample for LCA</p>
+    
+</div>
+
+<p>Observing the weights that are learned, we can also see that, consistent with previous research, LCA learns Gabor-like receptive fields. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/LCA_receptive_fields.png" alt="LCA_weights" />
+    
+    
+        <p class="image-caption">Receptive fields learned using LCA</p>
+    
+</div>
+
+<p>It is also interesting to consider the reconstruction performance of the learned receptive fields. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/LCA_reconstruction2.png" alt="LCA_reconstruction" />
+    
+    
+        <p class="image-caption">Left: original image; Right: reconstructed image</p>
+    
+</div>
+
+<p>The reconstructed image clearly captures the most important structural features of the original image and removes much of the noise. </p>
+
+<h3 id="tlca-model">tLCA Model</h3>
+
+<p>Here I will introduce a two-layer Locally Competitive Algorithm that I will call Topographical Locally Competitive Algorithm (tLCA). The general procedure is to first determine the initial activity of the first layer, immediately project it to the second layer in a fast feedforward manner, perform LCA at the second layer, project the activity back down to the first layer, and then perform LCA on the first layer (see figure for schematic illustration).</p>
+
+<!-- {:refdef: style="text-align: center;"}
+![](/assets/tLCA.png)
+{: refdef}
+ -->
+
+<!-- _includes/image.html -->
+<div class="image-wrapper-long">
+    
+        <img src="/assets/tLCA.png" alt="network diagram" />
+    
+    
+        <p class="image-caption">Illustration of the network architecture and procedure. The activation for the first layer (blue) is calculated and then local connections from the second layer (orange) to the first allow for it to pool over a neighborhood of units (cyan). Local competition is then performed on the second layer. In the right panel, after LCA on the second layer terminates, activations are then projected back down to the first layer via local connections. Finally LCA on the first layer is conducted until termination. </p>
+    
+</div>
+
+<p>Now we will walk through the steps of bulding the model (to see all code navigate to my <a href="https://github.com/dlacombejr/tLCA">tLCA repository</a>). To begin building the model, we will first define some parameters: </p>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="c">% set environment parameters</span>
+<span class="lineno">2</span> <span class="n">neurons</span> <span class="p">=</span> <span class="mi">121</span><span class="p">;</span>      				<span class="c">% number of neurons</span>
+<span class="lineno">3</span> <span class="n">patch_size</span> <span class="p">=</span> <span class="mi">256</span><span class="p">;</span>   				<span class="c">% patch size</span>
+<span class="lineno">4</span> <span class="n">batch_size</span> <span class="p">=</span> <span class="mi">1000</span><span class="p">;</span>  				<span class="c">% batch size</span>
+<span class="lineno">5</span> <span class="n">thresh</span> <span class="p">=</span> <span class="mf">0.1</span><span class="p">;</span>       				<span class="c">% LCA threshold </span>
+<span class="lineno">6</span> <span class="n">h</span> <span class="p">=</span> <span class="p">.</span><span class="mi">005</span><span class="p">;</span>           				<span class="c">% learning rate</span>
+<span class="lineno">7</span> <span class="n">blocksize</span> <span class="p">=</span> <span class="mi">3</span><span class="p">;</span>     				<span class="c">% neighborhood size</span>
+<span class="lineno">8</span> <span class="n">maxIter</span> <span class="p">=</span> <span class="mi">1000</span><span class="p">;</span>    				<span class="c">% maximum number of iterations</span></code></pre></div>
+
+<p>We can then randomly initialize the wieghts of the network and constrain them to lie on the <script type="math/tex">\ell_2</script> ball via normalization:</p>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">W</span> <span class="p">=</span> <span class="nb">randn</span><span class="p">(</span><span class="n">patch_size</span><span class="p">,</span> <span class="n">neurons</span><span class="p">);</span> 		<span class="c">% randomly initialize wieghts</span>
+<span class="lineno">2</span> <span class="n">W</span> <span class="p">=</span> <span class="n">W</span> <span class="o">*</span> <span class="nb">diag</span><span class="p">(</span><span class="mi">1</span> <span class="o">./</span> <span class="nb">sqrt</span><span class="p">(</span><span class="n">sum</span><span class="p">(</span><span class="n">W</span> <span class="o">.^</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)));</span>	<span class="c">% normalize the weights</span></code></pre></div>
+
+<p>Next we need to define the local connectivities between the first layer and the second layer. These weights are held constant and are not trained like the weights of the first layer that connect to the input. To do so, we define a function <code>gridGenerator</code> with arguments <code>neurons</code> and <code>filterSize</code> and returns a <code>group x neurons</code> matrix <code>blockMaster</code> that contains binary row vectors with filled entries corresponding to neurons that belong to the <script type="math/tex">i^{th}</script> group. </p>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno"> 1</span> <span class="k">function</span><span class="w"> </span>blockMaster <span class="p">=</span><span class="w"> </span><span class="nf">gridGenerator</span><span class="p">(</span>neurons, filterSize<span class="p">)</span><span class="w"></span>
+<span class="lineno"> 2</span> 
+<span class="lineno"> 3</span> <span class="c">% determine grid dimensions</span>
+<span class="lineno"> 4</span> <span class="n">gridSize</span> <span class="p">=</span> <span class="nb">sqrt</span><span class="p">(</span><span class="n">neurons</span><span class="p">);</span>
+<span class="lineno"> 5</span> 
+<span class="lineno"> 6</span> <span class="c">% create matrix with grids</span>
+<span class="lineno"> 7</span> <span class="n">blockMaster</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">neurons</span><span class="p">,</span> <span class="n">neurons</span><span class="p">);</span>
+<span class="lineno"> 8</span> <span class="n">c</span> <span class="p">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="lineno"> 9</span> <span class="n">x</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">gridSize</span><span class="p">,</span> <span class="n">gridSize</span><span class="p">);</span>
+<span class="lineno">10</span> <span class="n">x</span><span class="p">(</span><span class="k">end</span> <span class="o">-</span> <span class="p">(</span><span class="n">filterSize</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span><span class="k">end</span><span class="p">,</span> <span class="k">end</span> <span class="o">-</span> <span class="p">(</span><span class="n">filterSize</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span><span class="k">end</span><span class="p">)</span> <span class="p">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="lineno">11</span> <span class="n">x</span> <span class="p">=</span> <span class="nb">circshift</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]);</span>
+<span class="lineno">12</span> <span class="k">for</span> <span class="nb">i</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="n">gridSize</span> 
+<span class="lineno">13</span>     <span class="k">for</span> <span class="nb">j</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="n">gridSize</span> 
+<span class="lineno">14</span>         <span class="n">temp</span> <span class="p">=</span> <span class="nb">circshift</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[</span><span class="nb">i</span><span class="p">,</span> <span class="nb">j</span><span class="p">]);</span>
+<span class="lineno">15</span>         <span class="n">blockMaster</span><span class="p">(</span><span class="n">c</span><span class="p">,:)</span> <span class="p">=</span> <span class="n">temp</span><span class="p">(:)</span><span class="o">&#39;</span><span class="p">;</span>
+<span class="lineno">16</span>         <span class="n">c</span> <span class="p">=</span> <span class="n">c</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span> 
+<span class="lineno">17</span>     <span class="k">end</span>
+<span class="lineno">18</span> <span class="k">end</span></code></pre></div>
+
+<p>This works by first creating a binary matrix with ones over the group centered at <code>x(1,1)</code> (lines 9 - 11); because it is toriodal, there are ones on opposite sides of the matrix. Then, for all groups, it shifts this primary matrix around until all group local connections have been created and saved into the master matrix. </p>
+
+<p>Now that we have a means of projecting the first layer activation up to the second layer, we need to define how inhibition between units in the second layer should be weighted. We can define the mutual inhibiiton between two units in the second layer as being proportional to how many units in the first layer share their local connections. This can be conveniently created as follows:</p>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="c">% create group inhibition weight matrix</span>
+<span class="lineno">2</span> <span class="n">G2</span> <span class="p">=</span> <span class="n">blockMaster</span> <span class="o">*</span> <span class="n">blockMaster</span><span class="o">&#39;</span><span class="p">;</span> 
+<span class="lineno">3</span> <span class="n">G2</span> <span class="p">=</span> <span class="n">G2</span> <span class="o">./</span> <span class="n">max</span><span class="p">(</span><span class="n">max</span><span class="p">(</span><span class="n">G2</span><span class="p">));</span> 
+<span class="lineno">4</span> <span class="n">G2</span> <span class="p">=</span> <span class="n">G2</span> <span class="o">-</span> <span class="nb">eye</span><span class="p">(</span><span class="n">neurons</span><span class="p">);</span></code></pre></div>
+
+<p>Lastly we need to also set up a similarity matrix for all pairwise connections between units. In the traditional LCA, this was computed as the similarity between receptive fields as described previously. Here we instead compute similarity as Euclidean distance in simulated cortical space. We can compute the distance of each unit to all other units using the function <code>lateral_connection_generator</code>:</p>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno"> 1</span> <span class="k">function</span><span class="w"> </span>master <span class="p">=</span><span class="w"> </span><span class="nf">lateral_connection_generator</span><span class="p">(</span>neurons<span class="p">)</span><span class="w"></span>
+<span class="lineno"> 2</span> 
+<span class="lineno"> 3</span> <span class="c">% define grid size</span>
+<span class="lineno"> 4</span> <span class="n">dim</span> <span class="p">=</span> <span class="nb">sqrt</span><span class="p">(</span><span class="n">neurons</span><span class="p">);</span>
+<span class="lineno"> 5</span> 
+<span class="lineno"> 6</span> <span class="c">% create list of all pairwise x-y coordinates </span>
+<span class="lineno"> 7</span> <span class="n">x</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">dim</span> <span class="o">*</span> <span class="n">dim</span><span class="p">,</span> <span class="mi">2</span><span class="p">);</span> 
+<span class="lineno"> 8</span> <span class="n">c</span> <span class="p">=</span> <span class="mi">1</span><span class="p">;</span> 
+<span class="lineno"> 9</span> <span class="k">for</span> <span class="nb">i</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="n">dim</span>
+<span class="lineno">10</span>     <span class="k">for</span> <span class="nb">j</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="n">dim</span>
+<span class="lineno">11</span>         <span class="n">x</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">:)</span> <span class="p">=</span> <span class="p">[</span><span class="nb">i</span><span class="p">,</span> <span class="nb">j</span><span class="p">];</span> 
+<span class="lineno">12</span>         <span class="n">c</span> <span class="p">=</span> <span class="n">c</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span> 
+<span class="lineno">13</span>     <span class="k">end</span>
+<span class="lineno">14</span> <span class="k">end</span>
+<span class="lineno">15</span> 
+<span class="lineno">16</span> <span class="c">% create distance matrix of each cell from the center of the matrix</span>
+<span class="lineno">17</span> <span class="n">center_index</span> <span class="p">=</span> <span class="nb">ceil</span><span class="p">(</span><span class="n">neurons</span> <span class="o">/</span> <span class="mi">2</span><span class="p">);</span>
+<span class="lineno">18</span> <span class="n">center</span> <span class="p">=</span> <span class="n">x</span><span class="p">(</span><span class="n">center_index</span><span class="p">,</span> <span class="p">:);</span> 
+<span class="lineno">19</span> <span class="n">temp</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span> 
+<span class="lineno">20</span> <span class="k">for</span> <span class="nb">j</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="nb">size</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="lineno">21</span>     <span class="n">temp</span><span class="p">(</span><span class="nb">j</span><span class="p">)</span> <span class="p">=</span> <span class="n">norm</span><span class="p">(</span><span class="n">center</span> <span class="o">-</span> <span class="n">x</span><span class="p">(</span><span class="nb">j</span><span class="p">,</span> <span class="p">:));</span> 
+<span class="lineno">22</span> <span class="k">end</span>
+<span class="lineno">23</span> <span class="n">temp</span> <span class="p">=</span> <span class="nb">reshape</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="p">[</span><span class="n">dim</span><span class="p">,</span> <span class="n">dim</span><span class="p">]);</span> 
+<span class="lineno">24</span> 
+<span class="lineno">25</span> <span class="c">% shift the center of the matrix (zero distance) to the bottom right corner</span>
+<span class="lineno">26</span> <span class="n">temp</span> <span class="p">=</span> <span class="nb">circshift</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="p">[</span><span class="n">center_index</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">center_index</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]);</span> 
+<span class="lineno">27</span> 
+<span class="lineno">28</span> <span class="c">% create master matrix </span>
+<span class="lineno">29</span> <span class="n">master</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">neurons</span><span class="p">,</span> <span class="n">neurons</span><span class="p">);</span>
+<span class="lineno">30</span> <span class="n">c</span> <span class="p">=</span> <span class="mi">1</span><span class="p">;</span> 
+<span class="lineno">31</span> <span class="k">for</span> <span class="nb">i</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="n">dim</span>
+<span class="lineno">32</span>     <span class="k">for</span> <span class="nb">j</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="n">dim</span>
+<span class="lineno">33</span>         <span class="n">new</span> <span class="p">=</span> <span class="nb">circshift</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="p">[</span><span class="nb">j</span><span class="p">,</span> <span class="nb">i</span><span class="p">]);</span> 
+<span class="lineno">34</span>         <span class="n">master</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">:)</span> <span class="p">=</span> <span class="n">new</span><span class="p">(:)</span><span class="o">&#39;</span><span class="p">;</span> 
+<span class="lineno">35</span>         <span class="n">c</span> <span class="p">=</span> <span class="n">c</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span> 
+<span class="lineno">36</span>     <span class="k">end</span>
+<span class="lineno">37</span> <span class="k">end</span></code></pre></div>
+
+<p>Now we are ready to actually run the neural network and analyze its characteristics. Image patches that were preselected from natural images and preprocessed through normalization are read in and assigned to the variable <code>X</code>. Then we loop through each training iteration and perform the following procedure:</p>
+
+<ul>
+  <li>Normalize the weights as a form of regularization (as done previously)</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">W</span> <span class="p">=</span> <span class="n">W</span> <span class="o">*</span> <span class="nb">diag</span><span class="p">(</span><span class="mi">1</span> <span class="o">./</span> <span class="nb">sqrt</span><span class="p">(</span><span class="n">sum</span><span class="p">(</span><span class="n">W</span> <span class="o">.^</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)));</span>		<span class="c">% normalize the weights</span></code></pre></div>
+
+<ul>
+  <li>Rapidly feed forward the activation through first and on to the second level</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">b1</span> <span class="p">=</span> <span class="n">W</span><span class="o">&#39;</span> <span class="o">*</span> <span class="n">X</span><span class="p">;</span> 				   	<span class="c">% [neurons X examples]</span>
+<span class="lineno">2</span> <span class="n">b2</span> <span class="p">=</span> <span class="p">(</span><span class="n">blockMaster</span> <span class="o">*</span> <span class="nb">sqrt</span><span class="p">(</span><span class="n">b1</span> <span class="o">.^</span> <span class="mi">2</span><span class="p">))</span> <span class="o">/</span> <span class="n">blocksize</span><span class="p">;</span> 	<span class="c">% [groups X examples]</span></code></pre></div>
+
+<ul>
+  <li>Perform LCA at layer 2</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">u2</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">groups</span><span class="p">,</span><span class="n">batch_size</span><span class="p">);</span>
+<span class="lineno">2</span> <span class="k">for</span> <span class="nb">i</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="mi">5</span>
+<span class="lineno">3</span>     <span class="n">a2</span> <span class="p">=</span> <span class="n">u2</span> <span class="o">.*</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">u2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">);</span>
+<span class="lineno">4</span>     <span class="n">u2</span> <span class="p">=</span> <span class="mf">0.9</span> <span class="o">*</span> <span class="n">u2</span> <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="p">(</span><span class="n">b2</span> <span class="o">-</span> <span class="n">G2</span> <span class="o">*</span> <span class="n">a2</span><span class="p">);</span>        
+<span class="lineno">5</span> <span class="k">end</span>
+<span class="lineno">6</span> <span class="n">a2</span><span class="p">=</span><span class="n">u2</span><span class="o">.*</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">u2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">);</span> 				<span class="c">% [groups, batch_size]</span></code></pre></div>
+
+<ul>
+  <li>Project the activations back down to the first layer</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">a1</span> <span class="p">=</span> <span class="n">blockMaster</span><span class="o">&#39;</span> <span class="o">*</span> <span class="n">a2</span><span class="p">;</span> 				<span class="c">% [neurons X batch_size]</span>
+<span class="lineno">2</span> <span class="n">a1</span> <span class="p">=</span> <span class="n">a1</span> <span class="o">.*</span> <span class="n">b1</span><span class="p">;</span> 					<span class="c">% weight by first level activation</span></code></pre></div>
+
+<ul>
+  <li>Perform LCA on the first layer</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">u1</span> <span class="p">=</span> <span class="n">a1</span><span class="p">;</span>
+<span class="lineno">2</span> <span class="k">for</span> <span class="n">l</span> <span class="p">=</span><span class="mi">1</span><span class="p">:</span><span class="mi">10</span>
+<span class="lineno">3</span>     <span class="n">a1</span><span class="p">=</span><span class="n">u1</span><span class="o">.*</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">u1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">);</span>
+<span class="lineno">4</span>     <span class="n">u1</span> <span class="p">=</span> <span class="mf">0.9</span> <span class="o">*</span> <span class="n">u1</span> <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="p">(</span><span class="n">b1</span> <span class="o">-</span> <span class="n">G1</span><span class="o">*</span><span class="n">a1</span><span class="p">);</span>
+<span class="lineno">5</span> <span class="k">end</span>
+<span class="lineno">6</span> <span class="n">a1</span><span class="p">=</span><span class="n">u1</span><span class="o">.*</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">u1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">);</span> 				<span class="c">% [groups, batch_size]</span></code></pre></div>
+
+<ul>
+  <li>Update the weights</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">W</span> <span class="p">=</span> <span class="n">W</span> <span class="o">+</span> <span class="n">h</span> <span class="o">*</span> <span class="p">((</span><span class="n">X</span> <span class="o">-</span> <span class="n">W</span> <span class="o">*</span> <span class="n">a1</span><span class="p">)</span> <span class="o">*</span> <span class="n">a1</span><span class="o">&#39;</span><span class="p">);</span></code></pre></div>
+
+<p>Running this code using <code>maxIter</code> as set above takes just over a minute. The features that are learned replicate those found in the literature and they also self organize as has been found in the studies cited. An important observation is that the receptive fields organize by both orientation <em>and</em> spatial frequency, whereas lateral connections alone (run <code>latLCA.m</code> for comparison) only leads to some organization of orientation. Therefore, performing LCA in a two-layer network as we did here seems to be necessary to get good self organization along both dimensions. It is also important to note that phase appears to organize randomly, and this is due to the square rectification of the first layer (i.e., a counter-phase stimulus may result in a negative activation, but this will be rectified into a positive activation). </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/tLCA_weights.png" alt="tLCA_weights" />
+    
+    
+        <p class="image-caption">tLCA receptive fields</p>
+    
+</div>
+
+<p>The activation distributions of both the first and second level are very sparse, just as in regular LCA. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/tLCA_activation.png" alt="tLCA_activation" />
+    
+    
+        <p class="image-caption">tLCA activation distributions for both levels</p>
+    
+</div>
+
+<p>When we look at the activity distribution across cortical space for both levels of the network, we see that they are very localized. Also note that there is a high degree of overlap between activations across the two levels. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/tLCA_activity_space.png" alt="tLCA_activity_space" />
+    
+    
+        <p class="image-caption">tLCA activation distributions across the first and second level of the hierarchy</p>
+    
+</div>
+
+<p>We can also see that the reconstruction capability of tLCA is on par with LCA. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/tLCA_reconstruction.png" alt="tLCA_reconstruction" />
+    
+    
+        <p class="image-caption">tLCA reconstruction. Left: original image; Right: reconstructed image</p>
+    
+</div>
+
+<p>The reason for the poorer reconstruction performance is because of the smaller number of neurons, their more dependent activity, and fewer iterations in training. </p>
+
+<h2 id="references">References</h2>
+<!-- <center><b>References</b></center>
+ -->
+<ol class="bibliography"><li><span id="antolik2011development">Antolı́k Ján, &amp; Bednar, J. A. (2011). Development of maps of simple and complex cells in the primary visual cortex. <i>Frontiers In Computational Neuroscience</i>, <i>5</i>.</span></li>
+<li><span id="hyvarinen2001topographic">Hyvärinen, A., Hoyer, P., &amp; Inki, M. (2001). Topographic independent component analysis. <i>Neural Computation</i>, <i>13</i>(7), 1527–1558.</span></li>
+<li><span id="jia2010self">Jia, Y., &amp; Karayev, S. (2010). Self-Organizing Sparse Codes.</span></li>
+<li><span id="kavukcuoglu2009learning">Kavukcuoglu, K., Ranzato, M. A., Fergus, R., &amp; Le-Cun, Y. (2009). Learning invariant features through topographic filter maps. In <i>Computer Vision and Pattern Recognition, 2009. CVPR 2009. IEEE Conference on</i> (pp. 1605–1612). IEEE.</span></li>
+<li><span id="rozell2007locally">Rozell, C., Johnson, D., Baraniuk, R., &amp; Olshausen, B. (2007). Locally competitive algorithms for sparse approximation. In <i>Image Processing, 2007. ICIP 2007. IEEE International Conference on</i> (Vol. 4, pp. IV–169). IEEE.</span></li>
+<li><span id="swindale1996development">Swindale, N. V. (1996). The development of topography in the visual cortex: a review of models. <i>Network: Computation In Neural Systems</i>, <i>7</i>(2), 161–247.</span></li>
+<li><span id="welling2002learning">Welling, M., Osindero, S., &amp; Hinton, G. E. (2002). Learning sparse topographic representations with products of student-t distributions. In <i>Advances in neural information processing systems</i> (pp. 1359–1366).</span></li></ol>
+<hr />
+<div class="footnotes">
+  <ol>
+    <li id="fn:fn-biological_accuracy">
+      <p>Although these models have the advantage of being driven by natural image statistics, they also suffer from some biological implausibility <a href="#antolik2011development">(Antolı́k Ján &amp; Bednar, 2011)</a>. <a href="#fnref:fn-biological_accuracy" class="reversefootnote">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+
+  </article>
+
+
+        
+            
+                
+            
+                
+                    
+                
+            
+            
+                
+            
+        
+
+        
+            
+            
+                
+                    
+                
+                    
+                        
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                
+                    
+                    
+                
+            
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                        
+                    
+                
+                    
+                
+                
+                    
+                    
+                
+            
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                        
+                    
+                
+                
+                    
+                    
+                
+            
+        
+
+        <p id="post-meta"><i><small>Posted  in <span class="label" style="background-color:#CEE3F6"><a href="/blog/category/programming/">Programming</a></span> with tags<i class="fa fa-tags"></i>: <a href="/blog/tag/sparse-coding/">Sparse Coding</a>, <a href="/blog/tag/LCA/">LCA</a>, <a href="/blog/tag/MATLAB/">MATLAB</a></small></i></p>
+
+</div>
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES * * */
+    var disqus_shortname = 'dlacombejr';
+    
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-67244612-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+      </div>
+    </div>
+
+    <div class="footer-nav">
+  <a class="page-link" href="/">home</a>
+  <a class="page-link" href="/about">about</a>
+  <a class="page-link" href="/projects">projects</a>
+  <a class="page-link" href="/cv/lacombe_CV.pdf">CV</a>
+  <a class="page-link" href="/atom.xml">Feed</a>
+</div>
+
+<footer class="site-footer">
+
+  <div class="wrapper">
+
+<!--     <h2 class="footer-heading">Daniel C. LaCombe, Jr</h2>
+ -->
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Daniel C. LaCombe, Jr</li>
+          <li><a href="mailto:daniel.lacombe.jr@gmail.com">daniel.lacombe.jr@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/dlacombejr">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">dlacombejr</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/daniellacombejr">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">daniellacombejr</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">This is Dan's personal website for  sharing and discussing scientific topics through words and code. Come join the discussion.  
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-67244612-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+<!-- mathjax -->
+<!-- <script type="text/javascript" src'"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMMl"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({tex2jax: {inlineMath: [['$', '$''], ['\\(','\\)']]}});
+</script? -->

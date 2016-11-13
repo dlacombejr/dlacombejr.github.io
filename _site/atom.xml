@@ -1,0 +1,1254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+<link rel="hub" href="https://pubsubhubbub.appspot.com"/>
+
+  <title type="text" xml:lang="en"></title>
+    <link type="application/atom+xml" href="/atom.xml" rel="self"/>
+    <link href="/"/>
+  <updated>2016-11-13T16:52:54Z</updated>
+  <id>/</id>
+  <author>
+    <name></name>
+    <email></email>
+  </author>
+  <rights type="text">Copyright © 2016 . All rights reserved.</rights>
+  
+  <entry>
+    <title>Deep Learning for RegEx</title>
+    <link rel="alternate" type="text/html" href="/2016/11/13/deep-learning-for-regex.html/?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=DeepLearningforRegEx" />
+    <published>2016-11-13T00:00:00Z</published>
+    <updated>2016-11-13T00:00:00-05:00</updated>
+    <id>/2016/11/13/deep-learning-for-regex</id>
+    <content type="html"><![CDATA[ <p>Recently I decided to try my hand at the <a href="https://www.crowdanalytix.com/contests/extraction-of-product-attribute-values">Extraction of product attribute values</a> competition hosted on <a href="https://www.crowdanalytix.com/">CrowdAnalytix</a>, a website that outsources data science problems for companies to people with the skills to solve them. I usually work with image or video data, so this was a refreshing exercise working with text data. The challenge was to extract the Manufacturer Part Number (MPN) from provided product titles and descriptions that were of varying length – a standard <a href="https://en.wikipedia.org/wiki/Regular_expression">RegEx</a> problem.  After a cursory look at the data, I saw that there were ~54,000 training examples so I decided to give Deep Learning a chance. Here I describe my solution that landed me a 4th place position on the public leaderboard. </p>
+
+<!--more-->
+
+<h3 id="disclaimer">Disclaimer</h3>
+
+<p>Because this was a winning submission, I cannot share code as per <a href="https://www.crowdanalytix.com/jq/solversAgreement.html">CrowdAnalytix’s Solver’s Agreement</a>. Permission is however given to share the approach to the solution. </p>
+
+<h3 id="the-problem">The Problem</h3>
+
+<p>From the competition website, “The objective of this contest is to extract the MPN for a given product from its Title/Description using regex patterns.” Now, I didn’t know what RegEx patterns were, but I could understand the problem of extracting text from a larger text. For my purposes, given that I wanted to learn representations, it was enough for me to understand that if I had the following:</p>
+
+<blockquote>
+  <p>EVGA NVIDIA GeForce GTX 1080 Founders Edition 8gb Gddr5x 08GP46180KR</p>
+</blockquote>
+
+<p>Then I just wanted to extract the MPN “08GP46180KR” using some representations that learned to distinguish MPNs from other text making up the product title and description. </p>
+
+<p>If you are interested, here’s the basic gist: you hard-code some rules for patterns that you are interested in finding. Here’s an example for finding e-mail addresses:</p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/CAX_blog/regular-expression.gif" alt="" />
+    
+    
+        <p class="image-caption"></p>
+    
+</div>
+
+<p>Here, this RegEx looks for pre-defined characters in fields surrounding the “@” and “.” characters. The power of Deep Learning is that, provided enough training examples, we can learn these RegEx patterns from the data directly instead of hard-coding them. This is the approach that I took.</p>
+
+<h3 id="data-setup">Data Setup</h3>
+
+<p>The training data consisted of ~54,000 examples with the following four entries: [id, product_title, product_description, mpn]; test data was the same except for the omission of MPN field. Upon inspection of the data, I found that the MPN was, in almost all cases, present in either the product title or description, if not both. It also became evident to me that this was a hard problem as there were many other “distractors” that looked very similar to MPNs but were not marked as the target (for example, in the above Graphics Processing Unit product, “Gddr5x” looks a lot like other MPNs that existed in the training set). Given that the problem was to extract the MPN from the other fields, I set the input as a concatenation of the product title and description and set the target (or output) as the MPN. </p>
+
+<p>Now that I had determined what my inputs and outputs were, I needed to determine some sort of embedding so that I could use a neural network. Because this was not a usual Natural Language Processing problem do the presence of MPN codes, HTML snippets and other odd characters, common choices such as <a href="https://en.wikipedia.org/wiki/Word2vec">word2vec</a> were not going to be suitable (correct me if I’m wrong here). I fortunately had a rock-climbing buddy, Joseph Prusa, that had been working with character-wise embeddings for sentiment analysis. He very kindly shared his embedding code, and after some custom-tailoring to my problem, I had an embedding solution. </p>
+
+<p>The embedding procedure takes each character and embeds it as an 8-bit binary vector. For example the string “EVGA NVIDIA GeForce GTX 1080 Founders Edition 8gb Gddr5x 08GP46180KR” from the above example would be represented like such:</p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/CAX_blog/embedding_example_2.png" alt="" />
+    
+    
+        <p class="image-caption"></p>
+    
+</div>
+
+<p>The next problem was that inputs (i.e., the concatenated product title and description string) were of varying length. Thus, I figured that I needed to settle on some way to make them all the same length to feed to the network. My first step was to visualize the distribution of all the input lengths.</p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/CAX_blog/input_lengths.png" alt="" />
+    
+    
+        <p class="image-caption"></p>
+    
+</div>
+
+<p>Based on this distribution, I chose to set the max length to 2000 as it included most examples and avoided very long inputs to only include a couple outliers. With this max length set, I first clipped each string input and then embedded it using the procedure above. In the case that an input was shorter than the max length, it was padded with zeros. In the case that it was longer, if the MPN code was within the range of the max length, then no problem, if it was, then it was just another case where the MPN code was absent (which was very infrequent as well). The result of all this is a <script type="math/tex">8</script> X <script type="math/tex">2000</script> “image” that can now be fed to the model. </p>
+
+<h3 id="problem-formulation">Problem Formulation</h3>
+
+<p>Assuming that we want to build some neural network that we can train using back-propagation, the next question is what is the appropriate output and loss function. The most natural choice seemed to be that the output would be just the MPN in the embedded vectorial format. This, in combination with a loss like <a href="https://en.wikipedia.org/wiki/Mean_squared_error">Mean-Squared Error</a> that is common of generative models in unsupervised learning just did not do the trick due to technical reasons.</p>
+
+<p>Eventually I converged on the following solution that was sufficient to get some reasonable results. Namely, I defined the output of the network to be two one-hot binary vectors with a length equal to the max length (set to <script type="math/tex">2000</script> here), where the first vector indicated the starting index of the MPN and the second vector indicated the ending index of the MPN. Then the loss was simply the summed categorical crossentropy for both vectors. </p>
+
+<p>Given this output, an auxiliary function was then created on the backend to extract the MPN vectorial representation from the input given the two indices and then convert the embedded MPN back to a string representation as the final output. In the cases where no MPN was present, the target was defined as ones at the end of both vectors. </p>
+
+<h3 id="model-architecture">Model Architecture</h3>
+
+<p>Ok, so now that the data has been embedded, and our target has been formulated, the next step was to build a model that would perform the above task well. I tried a bunch of different neural network models, including deep convolutional neural networks with standard architectures (e.g., 2D conv-net with max-pooling layers). These produced good but unsatisfactory results – nothing that was going to get me a winning spot. </p>
+
+<p>Fortunately, <a href="https://deepmind.com/">Google DeepMind</a> had just put out a paper on their new model <a href="https://deepmind.com/blog/wavenet-generative-model-raw-audio/">WaveNet</a> that used causal, <a href="https://arxiv.org/abs/1511.07122">dilated convolutions</a> that served as the seed of my idea. WaveNet, and other similar models, were very intriguing because they used multiple layers of convolutional operators with no pooling that were able to obtain filters with very large receptive fields while keeping the number of parameters within a reasonable range because of the dilations used at each subsequent layer (see the red portion of the figure below; image source – <a href="https://arxiv.org/abs/1610.10099">Neural Machine Translation in Linear Time</a>).</p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/CAX_blog/dilated_convolution.jpg" alt="" />
+    
+    
+        <p class="image-caption">Illustration of dilated convolutions on single-dimensional data</p>
+    
+</div>
+
+<!-- On [r/MachineLearning](https://www.reddit.com/r/MachineLearning/), [/u/Kulde](https://www.reddit.com/user/Kulde) posted his/her replication in [Keras](https://keras.io/) using just dilated convolutions that I used as a seed for my idea. 
+ -->
+
+<p>The final model idea that I converged on was to extract a set of basic features from the input, feed them through a series of dilated convolutions and then branch off two convolutional filters with softmax activation functions to predict start and end indices. In more detail, the model was as follows:</p>
+
+<ul>
+  <li>Extract basic features from input using 1D convolutions of varying lengths (1, 3, 5, 7 with 75, 75, 50, and 50 fiters for each length, respectively); these represent single-character to multi-character representations of varying length. These representations were then concatenated and feed forward to next layers. </li>
+  <li>Next these representations were fed through a series of blocks that perform 1D à trous (or dilated) convolutions with Batch Normalization, Rectified Linear Units, and skip connections. This allowed the network to choose the best matching start and end indices based on scopes that covered almost the entire input due to the dilated convolutions.</li>
+  <li>Finally, two 1D convolutional filters with softmax activations were performed over the residual output; the maximum argument represented the index of highest probability for the start and end indices. </li>
+</ul>
+
+<p>The model architecture is represented graphically below, showing the major features of the model. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/CAX_blog/model.png" alt="" />
+    
+    
+        <p class="image-caption"></p>
+    
+</div>
+
+<h3 id="performance">Performance</h3>
+
+<p>After training I, observed that the model was close to perfect on the training set, hovered around ~90% accuracy for the validation set, and obtained ~84% on the public leaderboard. Not bad!</p>
+
+<p>One thing that I noticed as I was scrambling to make submissions was that the model overfit the data very quickly due to the relatively small number of samples. I know that with only ~54,000 training examples, learning representations directly from the data was a bit risky, but I believe with a couple hundred thousand, my solution might have placed higher. Because I was late to the competition, I just chose to lower the learning rate and only train for a couple of epochs, which in the end worked out for me. However, provided that there was more time, I would have liked to explore some data augmentation techniques and model regularization which would have helped made the model more expressive and prevented overfitting. Additionally, pretraining on other text might have been a successful strategy. A brute-force effort would have also been increasing the max length parameter slightly, that may have given me some marginal improvements, but at a very high computational cost. </p>
+
+<!-- when MPN occured many times, it would select both
+	solved this by just selecting everything before first space (suboptimal because spaces are in MPN, but relatively infrequent compared to this issue)-->
+
+<h3 id="conclusions">Conclusions</h3>
+
+<p>This was a fun challenge for me and I found it satisfying to place especially given that I had not really worked on this type of problem before. Sorry in advance for adding to the Deep Learning hype, but I found this to be another interesting application of said methods to a domain that probably doesn’t see much of these techniques used, again showing the general abilities of Deep Learning. Hope this helps someone with a similar problem. </p>
+
+ ]]></content>
+  </entry>
+  
+  <entry>
+    <title>A Response to Anti-Representationalists</title>
+    <link rel="alternate" type="text/html" href="/2016/09/12/a-response-to-anti-representationalists.html/?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=AResponsetoAnti-Representationalists" />
+    <published>2016-09-12T00:00:00Z</published>
+    <updated>2016-09-12T00:00:00-04:00</updated>
+    <id>/2016/09/12/a-response-to-anti-representationalists</id>
+    <content type="html"><![CDATA[ <p>Coming from a background in cognitive science, where representationalist positions are the norm, I have read literature on non-representationalist viewpoints such as Lawrence Shapiro’s “Embodied Cognition” and O’Regan’s work on Sensorimotor Theory of Consiousness to put my work in perspective. These works have not had a major impact on my research, as representations of some form still seemed necessary for many of the examples they cited. I now work daily on artificial neural networks and “deep learning” is part of my basic vocabulary. Recently, I’ve come across <a href="https://aeon.co/essays/your-brain-does-not-process-information-and-it-is-not-a-computer">this article</a> from <a href="https://aeon.co/">aeon</a> multiple times through media outlets such as <a href="https://www.reddit.com/search?q=Epstein+brain+is+not+a+computer&amp;restrict_sr=&amp;sort=relevance&amp;t=all">Reddit</a> and Facebook. In the essay, the <!-- renowned --> much respected Dr. Robert Epstein voices his position against using computational metaphors for the brain. Here, I give my response to his, and more general claims surrounding this issue, from my background in cognitive psychology and relatively short experience conducting research in machine learning and artificial intelligence. Please share your thoughts!</p>
+
+<!--more-->
+
+<h2 id="summary-of-the-article">Summary of The Article</h2>
+
+<p>The main point that Epstein attempts to convey in this article is that we are confusing ourselves about how the brain works by using our most advanced technology, computers, as a metaphor – what he refers to as the information processing (IP) metaphor. He notes that we do not have, and never develop, the components that are essential to modern day computers, such as software, models, or memory buffers. Indeed, computers process information by moving around large arrays of data encoded in bits that are then processed using an algorithm. This is not what humans do – a given. Challenging researchers in the field, he finds that basically none can explain the brain without appealing to the IP metaphor, which he reasonably sees as a problem. Crucially, he points out that the metaphor is based on a faulty syllogism whereby we conclude “…all entities that are capable of behaving intelligently are information processors”. Just as previous metaphors for the brain seem silly to us now, so will that of the IP metaphor in the future. </p>
+
+<h2 id="first-some-definitions">First Some Definitions</h2>
+
+<p>As with most debates, it is important to define some important terms so that disagreements are not based in semantics. The following are definitions for key terms used in Epstein’s argument and that I will reference throughout this reply. These are surely debatable, but it was the best I could do here. </p>
+
+<ul>
+  <li>
+    <p><strong>algorithm</strong> - <a href="https://en.wikipedia.org/wiki/Algorithm">”…a self-contained step-by-step set of operations to be performed”</a></p>
+  </li>
+  <li>
+    <p><strong>operation</strong> - in mathematics, <a href="https://en.wikipedia.org/wiki/Operation_(mathematics)">”…a calculation from zero or more input values (called operands) to an output value.”</a></p>
+  </li>
+  <li>
+    <p><strong>information processing</strong> - in the computing sense, <a href="https://en.wikipedia.org/wiki/Information_processing">”…the use of algorithms to transform data…”</a></p>
+  </li>
+  <li>
+    <p><strong>information</strong> - the resolver of uncertainty. we can say that data that is completely random, is uncertain, and has no information. if information of some form exists in data, it can resolve the uncertainty with respect to outputs</p>
+  </li>
+  <li>
+    <p><strong>data</strong> - the quantities, characters, or symbols on which operations are performed by a computer</p>
+  </li>
+  <li>
+    <p><strong>representation</strong> - from a cognitive viewpoint (which Epstein is likely to be more familiar with), is that of an <a href="https://en.wikipedia.org/wiki/Mental_representation">“internal cognitive symbol that represents external reality”</a>; from machine learning, <a href="http://www.cl.uni-heidelberg.de/courses/ws14/deepl/BengioETAL12.pdf">”…learning representations of the data that make it easier to extract useful information when building classifiers or other predictors.”</a> </p>
+  </li>
+  <li>
+    <p><strong>computer</strong> - <a href="https://en.wikipedia.org/wiki/Computer">”…a device that can be instructed to carry out an arbitrary set of arithmetic or logical operations automatically.”</a>; more generally, we can say “one that computes”</p>
+  </li>
+  <li>
+    <p><strong>computation</strong> - <a href="https://en.wikipedia.org/wiki/Computation">”…any type of calculation … that follows a well-defined model understood and expressed as, for example, an algorithm.”</a></p>
+  </li>
+</ul>
+
+<p>These definitions were not cherry picked to support my position, and when appropriate, I gave multiple definitions to reflect use-specific cases. </p>
+
+<h2 id="next-some-thoughts">Next Some Thoughts</h2>
+
+<p>I appreciate Epstein’s challenge to the IP metaphor and recognize the higher chance of it being invalid rather than the final answer to understanding the brain given the history of failed metaphorical applications to brain functioning. Figures such as Epstein are a necessary component to scientific progress, as we must challenge our scientific paradigms and inspect how they bias the observations we make.  However, as someone that builds artificial neural networks, I (perhaps erroneously) remain convinced of the brain’s role in computation <!-- (e.g., weighted sums of inputs, activation functions) --> despite the evidence he and others provide. Here I attempt to illustrate how most of the examples he cites are straw man by conveying an inaccurate view of how the IP metaphor is seen by those that take seriously the primary role of computation in artificial general intelligence and its relation to the brain. </p>
+
+<h3 id="the-information-processing-metaphor">The Information Processing Metaphor</h3>
+
+<p>Based on our definition above, information processing involves the transformation of data using algorithms that are themselves a set of sequential operations. From this, Epstein’s understanding of how algorithms and computations relate to brain function appears immediately outdated and misguided. He strongly emphasizes that an algorithm is about the set of rules in machine code that dictates how data is stored, transfered, and received from hardware elements such as buffers, devices, and registers. Yes, this is an algorithm, but not the one that we are interested in when trying to draw connections to the brain. These aspects he highlights are details of implementation specific to conventional computers <!-- (see memristors for the next generation of computing)  -->that those simulating neural nets, for example, would never argue takes place in the brain. </p>
+
+<p>One aspect of his overly narrow view of computation is a veridical, discrete, and easily accessible memory store. To illustrate that we don’t have any type of memory bank like a computer, he describes a demonstration where an intern is asked to draw a dollar bill. When she must do so from memory, she is unable to draw the object with much detail. In contrast, when she is given the opportunity to look at the dollar bill, she can draw it in great detail. </p>
+
+<blockquote>
+  <p>“Jinny was as surprised by the outcome as you probably are…”</p>
+</blockquote>
+
+<p>Not really. <!-- Sorry, but this says more about Jinny's visual artistic skills (at least specifically to drawing currency) than how the brain works. --> Besides this being the expected outcome, common findings in unsupervised learning predict that outcome, producing “fuzzy” generated images when prompted. On the other hand, the most recent state-of-the-art in generative modeling, <a href="https://github.com/Newmu/dcgan_code">adversarial networks</a>, are more akin to what an artist might do – producing depictions that can be compared to reality until they match more closely (at least with respect to realism). </p>
+
+<blockquote>
+  <p>Even if she spent time studying the details, “…no image of the dollar bill has in any sense been ‘stored’ in Jinny’s brain.” </p>
+</blockquote>
+
+<!-- This is still not a problem for the information processing view. -->
+<p>Artificial neural networks, and likely biological, for that matter, don’t have images stored inside them; they have abstract, identity-preserving translation-invariant, representations learned from input data. In fact, the representations themselves are a form of memory. Presumably what Jinny would be doing in those moments of studying is temporarily strengthening connections in the network hierarchy that would generate a dollar bill image. Below, we will see how this is likely distributed across the network – unlike a modern computer, yet still computational in nature. </p>
+
+<p>Let us adopt the general (non-spiking, feed-forward) artificial neural network (aNN) as our main example of modeling the brain from an information processing perspective. At their core, aNNs are algorithms (i.e., a sequence of operations, such as weighted sums and linear rectifiers), which are arguably biologically plausible (i.e., synapses with inhibitory and excitatory strengths that are thresholded), yet clearly limited in scope. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+    <a href="http://www.theprojectspot.com/images/post-assets/an.jpg" title="a" target="_blank">
+    
+        <img src="/assets/ann.jpg" alt="a" />
+    
+    </a>
+    
+    
+        <p class="image-caption">Schematic of a single neuronal unit</p>
+    
+</div>
+
+<p>Deep neural networks, more specifically, are simply a hierarchical series of operations that take data (e.g., images analogous to retinal pattern of activation) and transform them through each layer, increasingly projecting them into a space that is more valuable for learning and making decisions. This is nothing more than an algorithm, and there is good reason to believe that it is very similar to what our brains are doing. </p>
+
+<p>For example, a convolutional neural network convolves filters across an image. Certainly our brains do not perform convolutions, but rather this reflects certain assumptions that allow us to simulate them in software. Specifically, images translate across space and because we can move our heads and eyes, similar basic features can occur anywhere in the visual field. Therefore it would make sense to have similar basic features tiled across the early visual cortex with receptive fields at different locations. Indeed this is what we see in biological brains. Although an oversimplification that undoubtedly has biologically implausible limitations, it serves to make the point that these computations are abstractions of primitives (e.g., weighted sums) that can easily be physically implemented. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+    <a href="http://www.kdnuggets.com/wp-content/uploads/deep-learning.png" title="a" target="_blank">
+    
+        <img src="/assets/cnn.png" alt="a" />
+    
+    </a>
+    
+    
+        <p class="image-caption">Example of operations involved in a deep convolutional neural network</p>
+    
+</div>
+
+<!-- When I want the neural net to learn, I take an image from the "external world" (i.e., on a hard drive) and expose it to the network passing it upwards through multiple layers of rudimentary operations that produce activation values at all levels of the hierarchy. These activation values are ephemeral in the real world and unfold across time (see LCA). To perceive then is to only have information pass through a network within which memory is latent. 
+ -->
+
+<!-- Moreover, these processes that he appeals to -- copying and transferring -- are unlikely to be employed in future computers, are computationally demanding, and are just not what biology is doing. This is not a problem for the IP metaphor. See memristers for example (https://www.technologyreview.com/s/537211/a-better-way-to-build-brain-inspired-chips/). 
+ -->
+
+<p>Now, in the above drawing demonstration, Epstein uses the outcome as an argument against the existence of “representations” that exist as stored memories, particularly in individual neurons. Indeed, as Epstein states and surely knows, no one in contemporary computational neuroscience would make such an absurd assertion. <!-- Asking where a representation or memory is in the brain is like asking where a single ripple is in the ocean. But beyond this, there are good functional reasons for believing that intelligent systems would not employ such a strategy.  --> A very common concept in computational neuroscience is that of a <em>sparse distributed representation</em>, which is very similar to the idea of <em>parallel distributed processing</em>. In this framework, inputs can be represented with a very small number of features that are distributed. Additionally, memories (which may be representations themselves as described above) are not discrete, but are distributed. Therefore, “deleting” one memory, if even possible, may involve removing enumerable others. </p>
+
+<p>From <a href="http://dlacombejr.github.io/programming/2015/09/13/sparse-filtering-implemenation-in-theano.html">my previous blog post</a>:</p>
+
+<blockquote>
+  <p>A sparse coding scheme also has logically demonstrable functional advantages over the other possible types (i.e., local and dense codes) in that it has high representational and memory capacites (representatoinal capacity grows exponentially with average activity ratio and short codes do not occupy much memory), fast learning (only a few units have to be updated), good fault tolerance (the failure or death of a unit is not entirely crippling), and controlled interference (many representations can be active simultaneously; Földiák &amp; Young, 1995).</p>
+</blockquote>
+
+<p>Thus, when we look at the deep neural network below, the image of the face or cat that points at a particular image does not mean that an “image” is stored at that location. This image was generated by synthesizing an input that maximized that unit’s activation. But because that node’s activation is contingent upon a complex weighting of all the connections before it, it would be more accurate to say that the representation is distributed across all the connections before it, not in one location. Also note that the synthesized image is fuzzy and shows that it could be insensitive to translations. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+    <a href="http://www.kdnuggets.com/wp-content/uploads/deep-learning.png" title="a" target="_blank">
+    
+        <img src="/assets/DeepNetwork.png" alt="a" />
+    
+    </a>
+    
+    
+        <p class="image-caption">Deep network with example representational units</p>
+    
+</div>
+
+<!-- I surely hope his writing reflects more an attempt to attract a layman audience than to convince those in the academic community. 
+
+artists
+compression
+average
+perceiving vs generating
+
+ -->
+<p>In fact, he said it himself.</p>
+
+<blockquote>
+  <p>“For any given experience, orderly change could involve a thousand neurons, a million neurons or even the entire brain, with the pattern of change different in every brain.”</p>
+</blockquote>
+
+<p>This is exactly what neural network simulations do; this fact does not preclude computation. </p>
+
+<h3 id="a-new-framework">A New Framework?</h3>
+
+<p>After this example, he attempts “to build the framework of a metaphor-free theory of intelligent human behaviour” that I find unsuccessful and only reframes the existing IP metaphor. In particular, he notes that we learn by making observations of paired (i.e., correlated) events and we are punished or rewarded based on how we respond to them. These are not new concepts to the field of machine learning and artificial intelligence. In fact, the success of almost all machine learning applications hinges on learning patterns built from correlated primitives that allow for good decisions to be made. </p>
+
+<p>As an illustration he submits that when a new song is learned, instead of “storing” it, the brain has simply “changed”. It’s not clear how this is at all different. What has changed? And how? In a computer I may save a new song as a discrete file on my hard drive. But if I want a neural network to learn it and be able to generate it, the “storing” would involve changing weights distributed across the network (as stated above). For example, if I already have existing knowledge of songs, many of which have similar components, I can represent this new song as a distributed code of sparse components that is not located in one single place. These components will be coupled, thereby creating a memory (or representation) that is distributed across the very thing that perceives it and produces it. </p>
+
+<p>To give a final illustration, he cites a commonly referenced example of catching a fly ball. Epstein, as well as others, argue that:</p>
+
+<blockquote>
+  <p>The IP perspective requires the player to formulate an estimate of various initial conditions of the ball’s flight – the force of the impact, the angle of the trajectory, that kind of thing – then to create and analyse an internal model of the path along which the ball will likely move, then to use that model to guide and adjust motor movements continuously in time in order to intercept the ball.</p>
+</blockquote>
+
+<p>Now, granted that this is from a 1995 article, this is an outdated view. As someone that takes the information processing view of the brain, I would never say that catching a fly ball involves explicitly calculating trajectory. In fact, keeping the ball in constant relation to the surrounding is likely exactly what a neural network agent using reinforcement learning would learn to do if it were trained to do so based on visual input. Furthermore, it would learn representations specific to those aspects (i.e., the ball, the horizon), and ultimately be calculating trajectory implicitly. It is not clear how this could be done “completely free of computations, representations and algorithms”, as Epstein and others claim. </p>
+
+<p>He argues that “because neither ‘memory banks’ nor ‘representations’ of stimuli exist in the brain, and because all that is required for us to function in the world is for the brain to change in an orderly way as a result of our experiences, there is no reason to believe that any two of us are changed the same way by the same experience.” It is just as easy to see that no experience would be the same due to distributed representations of “fuzzy” memories that have been compressed based on the existing network. IP prevails. </p>
+
+<!-- He suggests that the IP approach cannot account for the uniqueness of experiences. This is wrong. We know that when training neural networks from scratch, what they learn -- their representations -- will diverge based on random initializations of the weights. 
+ -->
+<!-- ### The Embodiment Problem
+ -->
+<!-- He appeals to the embodiment argument to undermine the IP metaphor. 
+
+"So to measure the output of a system does not necessarily tell you about the process that produced it." - Craig
+
+Yes, but creating a model that embodies many of the details we observe in biology and having that model produce behavior that is again consistent with other observations is good evidence. 
+
+facilitating research / generating testable predictions
+
+I will leave consciousness out of the question here
+ -->
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Epstein’s argument appears to be based on a erroneous, outdated, and rigid view of information processing that is unlike what those like myself take it to be. Unlike what he suggests, brains do not have perfect memory stores and representations are distributed, not local. Many simulated neural networks have exactly these features. What he has done is conflated computer with computation. Ultimately, artificial neural networks can be implemented in hardware, using the same operations as in the simulation, but without any of the other aspects involved in conventional computers, such as data transferring. Maybe if Epstein understood this, he would have to update his position.</p>
+
+<p>At the closing of his essay, Epstein makes a rather insulting statement:</p>
+
+<blockquote>
+  <p>“The IP metaphor has had a half-century run, producing few, if any, insights along the way.” </p>
+</blockquote>
+
+<p>This is a slap in the face to the fields of computational neuroscience, neuromorphic computing, and artificial intelligence, to name a few. The field of artificial intelligence, specifically, has been greatly guided by principles derived from our understanding of the brain. To ignore what those fields have to say about cognition is a dire mistake and rejecting the IP metaphor upon which they are founded removes all chance of such a dialogue. </p>
+
+<p>Ultimately, I can’t explain the brain either without appealing to the IP metaphor. But it appears neither can he. I see that the IP metaphor is based on invalid reasoning, but it is the best we have to go on and amazingly deep insights have been made through it. There is also something special, and universal about IP that, at least to me, makes it seem very likely to be implemented in the brain. </p>
+
+<blockquote>
+  <p>“We are organisms, not computers.” </p>
+</blockquote>
+
+<p>Well, maybe we’re both. At the very least we’re doing some computation. And the thing about computation is that it transcends the medium in which it is implemented – be it flesh or silicon. <!-- This particular representationalist remains unconvinced by contrarian arguments from Epstein and others of that camp.
+ --></p>
+
+<p><a href="http://lukependergrass.work/blog/the-information-processing-brain">Don’t push DELETE just yet.</a></p>
+
+<!-- --- -->
+
+<!-- [^fn-biological_accuracy]: Although these models have the advantage of being driven by natural image statistics, they also suffer from some biological implausibility <a href="#antolik2011development">(Antolı́k Ján &amp; Bednar, 2011)</a>.
+ -->
+ ]]></content>
+  </entry>
+  
+  <entry>
+    <title>Visualizing CIFAR-10 Categories with WordNet and NetworkX</title>
+    <link rel="alternate" type="text/html" href="/programming/2015/09/28/visualizing-cifar-10-categories-with-wordnet-and-networkx.html/?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=VisualizingCIFAR-10CategorieswithWordNetandNetworkX" />
+    <published>2015-09-28T00:00:00Z</published>
+    <updated>2015-09-28T00:00:00-04:00</updated>
+    <id>/programming/2015/09/28/visualizing-cifar-10-categories-with-wordnet-and-networkx</id>
+    <content type="html"><![CDATA[ <p>In this post, I will describe how the object categories from <a href="http://www.cs.toronto.edu/~kriz/cifar.html">CIFAR-10</a> can be visualized as a <a href="https://en.wikipedia.org/wiki/Semantic_network">semantic network</a>. CIFAR-10 is a database of images that is used by the computer vision community to benchmark the performance of different learning algorithms. For some of the work that I’m currently working on, I was interested in the semantic relations between the object categories, as other research has been in the past. We can do this by defining their relations with <a href="https://wordnet.princeton.edu/">WordNet</a> and then visualizing them using <a href="https://networkx.github.io/">NetworkX</a> combined with <a href="http://www.graphviz.org/">Graphviz</a>. </p>
+
+<!--more-->
+
+<h3 id="python-dependencies">Python Dependencies</h3>
+
+<p>Before being able to run the code described in this post, there are a couple of dependencies that must be installed (if not already on your machine). This includes the <a href="https://networkx.github.io/documentation/latest/install.html">NetworkX installation</a>, <a href="http://www.nltk.org/install.html">NLTK installation</a>, and <a href="http://www.graphviz.org/Download..php">Graphviz installation</a>. Also, after installing NLTK, <code>import nltk</code> and use <code>nltk.download()</code> to futher install the <code>wordnet</code> and <code>wordnet_ic</code> databases. You should be all set at this point!</p>
+
+<h2 id="visualizing-cifar-10-semantic-network">Visualizing CIFAR-10 Semantic Network</h2>
+
+<p>For this code demonstration, we do not actually need the CIFAR-10 dataset, but rather its object categories. One alternative would be to download the dataset and use the <code>batches.meta</code> file to import the labels. For simplicity, I instead just list out the categories and put them into a set. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno"> 1</span> <span class="n">categories</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+<span class="lineno"> 2</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;airplane&#39;</span><span class="p">)</span>
+<span class="lineno"> 3</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;automobile&#39;</span><span class="p">)</span>
+<span class="lineno"> 4</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;bird&#39;</span><span class="p">)</span>
+<span class="lineno"> 5</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;cat&#39;</span><span class="p">)</span>
+<span class="lineno"> 6</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;deer&#39;</span><span class="p">)</span>
+<span class="lineno"> 7</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;dog&#39;</span><span class="p">)</span>
+<span class="lineno"> 8</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;frog&#39;</span><span class="p">)</span>
+<span class="lineno"> 9</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;horse&#39;</span><span class="p">)</span>
+<span class="lineno">10</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;ship&#39;</span><span class="p">)</span>
+<span class="lineno">11</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;truck&#39;</span><span class="p">)</span></code></pre></div>
+
+<p>Now we need to define a function that, beginning with a given object class, recursively adds a node and an edge between it and its <a href="https://en.wikipedia.org/wiki/Hyponymy_and_hypernymy"><em>hypernym</em></a> all the way up to the highest node (i.e., “entity”). I found <a href="http://www.randomhacks.net/2009/12/29/visualizing-wordnet-relationships-as-graphs/">this post</a> that demonstrated code that could do this, so I borrowed it and modified it for my purposes. The major addition was to extend the graph building function to mulitple object categories. We define a function <code>wordnet_graph</code> that builds us our network:</p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno"> 1</span> <span class="kn">import</span> <span class="nn">networkx</span> <span class="kn">as</span> <span class="nn">nx</span>
+<span class="lineno"> 2</span> <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">pl</span>
+<span class="lineno"> 3</span> <span class="kn">from</span> <span class="nn">nltk.corpus</span> <span class="kn">import</span> <span class="n">wordnet</span> <span class="k">as</span> <span class="n">wn</span>
+<span class="lineno"> 4</span> 
+<span class="lineno"> 5</span> <span class="k">def</span> <span class="nf">wordnet_graph</span><span class="p">(</span><span class="n">words</span><span class="p">):</span>
+<span class="lineno"> 6</span>     
+<span class="lineno"> 7</span>     <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno"> 8</span> <span class="sd">    Construct a semantic graph and labels for a set of object categories using </span>
+<span class="lineno"> 9</span> <span class="sd">    WordNet and NetworkX. </span>
+<span class="lineno">10</span> <span class="sd">    </span>
+<span class="lineno">11</span> <span class="sd">    Parameters: </span>
+<span class="lineno">12</span> <span class="sd">    ----------</span>
+<span class="lineno">13</span> <span class="sd">    words : set</span>
+<span class="lineno">14</span> <span class="sd">        Set of words for all the categories. </span>
+<span class="lineno">15</span> <span class="sd">        </span>
+<span class="lineno">16</span> <span class="sd">    Returns: </span>
+<span class="lineno">17</span> <span class="sd">    -------</span>
+<span class="lineno">18</span> <span class="sd">    graph : graph</span>
+<span class="lineno">19</span> <span class="sd">        Graph object containing edges and nodes for the network. </span>
+<span class="lineno">20</span> <span class="sd">    labels : dict</span>
+<span class="lineno">21</span> <span class="sd">        Dictionary of all synset labels. </span>
+<span class="lineno">22</span> <span class="sd">    &quot;&quot;&quot;</span>
+<span class="lineno">23</span>     
+<span class="lineno">24</span>     <span class="n">graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span>
+<span class="lineno">25</span>     <span class="n">labels</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="lineno">26</span>     <span class="n">seen</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+<span class="lineno">27</span>     
+<span class="lineno">28</span>     <span class="k">def</span> <span class="nf">recurse</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+<span class="lineno">29</span>         
+<span class="lineno">30</span>         <span class="sd">&quot;&quot;&quot; Recursively move up semantic hierarchy and add nodes / edges &quot;&quot;&quot;</span>  
+<span class="lineno">31</span> 
+<span class="lineno">32</span>         <span class="k">if</span> <span class="ow">not</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">seen</span><span class="p">:</span>                               <span class="c"># if not seen...</span>
+<span class="lineno">33</span>             <span class="n">seen</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>                                 <span class="c"># add to seen</span>
+<span class="lineno">34</span>             <span class="n">graph</span><span class="o">.</span><span class="n">add_node</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>                      <span class="c"># add node</span>
+<span class="lineno">35</span>             <span class="n">labels</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>     <span class="c"># add label</span>
+<span class="lineno">36</span>             <span class="n">hypernyms</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">hypernyms</span><span class="p">()</span>                   <span class="c"># get hypernyms</span>
+<span class="lineno">37</span> 
+<span class="lineno">38</span>             <span class="k">for</span> <span class="n">s1</span> <span class="ow">in</span> <span class="n">hypernyms</span><span class="p">:</span>                        <span class="c"># for hypernyms</span>
+<span class="lineno">39</span>                 <span class="n">graph</span><span class="o">.</span><span class="n">add_node</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>                 <span class="c"># add node</span>
+<span class="lineno">40</span>                 <span class="n">graph</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">s1</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>         <span class="c"># add edge between</span>
+<span class="lineno">41</span>                 <span class="n">recurse</span><span class="p">(</span><span class="n">s1</span><span class="p">)</span>                             <span class="c"># do so until top</span>
+<span class="lineno">42</span>      
+<span class="lineno">43</span>     <span class="c"># build network containing all categories          </span>
+<span class="lineno">44</span>     <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">words</span><span class="p">:</span>                                  <span class="c"># for all categories</span>
+<span class="lineno">45</span>         <span class="n">s</span> <span class="o">=</span> <span class="n">wn</span><span class="o">.</span><span class="n">synset</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">word</span><span class="p">)</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="s">&#39;.n.01&#39;</span><span class="p">))</span>         <span class="c"># create synset            </span>
+<span class="lineno">46</span>         <span class="n">recurse</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>                                      <span class="c"># call recurse</span>
+<span class="lineno">47</span>     
+<span class="lineno">48</span>     <span class="c"># return the graph and labels    </span>
+<span class="lineno">49</span>     <span class="k">return</span> <span class="n">graph</span> <span class="p">,</span> <span class="n">labels</span></code></pre></div>
+
+<p>Now we’re ready to create the graph for visualizing the semantic network for CIFAR-10. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno">1</span> <span class="c"># create the graph and labels</span>
+<span class="lineno">2</span> <span class="n">graph</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="n">wordnet_graph</span><span class="p">(</span><span class="n">categories</span><span class="p">)</span>
+<span class="lineno">3</span> 
+<span class="lineno">4</span> <span class="c"># draw the graph</span>
+<span class="lineno">5</span> <span class="n">nx</span><span class="o">.</span><span class="n">draw_graphviz</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+<span class="lineno">6</span> <span class="n">pos</span><span class="o">=</span><span class="n">nx</span><span class="o">.</span><span class="n">graphviz_layout</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+<span class="lineno">7</span> <span class="n">nx</span><span class="o">.</span><span class="n">draw_networkx_labels</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">pos</span><span class="o">=</span><span class="n">pos</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
+<span class="lineno">8</span> <span class="n">pl</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></code></pre></div>
+
+<p>The resulting semantic network should look like the following:</p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/CIFAR_10-wordnet.png" alt="CIFAR_10-wordnet" />
+    
+    
+        <p class="image-caption">Semantic Network for CIFAR-10</p>
+    
+</div>
+
+<p>We can see that from <em>entity</em>, the main branch between categories in CIFAR-10 is between artifacts and living things. The object categories themselves tend to be terminal nodes (except for dog). </p>
+
+<h2 id="quantifying-semantic-similarity">Quantifying Semantic Similarity</h2>
+
+<p>We can also use WordNet to quantify the semantic distance between two given object categories. Developing quantifications for semantic similarity is an area of ongoing study and the NLTK includes a couple variations. Here, we use a simple <code>path_similarity</code> quantification which is the length of the shortest path between two nodes, but many others can be implemented by using the <code>wordnet_ic</code> dataset and defining an information content dictionary (see <a href="http://www.nltk.org/howto/wordnet.html">here</a>). </p>
+
+<p>To find the semantic distance between all object categories, we create an empty similarity matrix of size <script type="math/tex">N \times N</script>, where <script type="math/tex">N</script> equals the number of object categoes, and iteratively calculate the semantic similarity for all pair-wise comparisons. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno"> 1</span> <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="lineno"> 2</span> <span class="kn">from</span> <span class="nn">nltk.corpus</span> <span class="kn">import</span> <span class="n">wordnet_ic</span>
+<span class="lineno"> 3</span> 
+<span class="lineno"> 4</span> <span class="c"># empty similarity matix</span>
+<span class="lineno"> 5</span> <span class="n">N</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">categories</span><span class="p">)</span>
+<span class="lineno"> 6</span> <span class="n">similarity_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">))</span>
+<span class="lineno"> 7</span> 
+<span class="lineno"> 8</span> <span class="c"># initialize counters</span>
+<span class="lineno"> 9</span> <span class="n">x_index</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="lineno">10</span> <span class="n">y_index</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="lineno">11</span> <span class="c"># loop over all pairwise comparisons</span>
+<span class="lineno">12</span> <span class="k">for</span> <span class="n">category_x</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">:</span>
+<span class="lineno">13</span>     <span class="k">for</span> <span class="n">category_y</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">:</span>
+<span class="lineno">14</span>         <span class="n">x</span> <span class="o">=</span> <span class="n">wn</span><span class="o">.</span><span class="n">synset</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">category_x</span><span class="p">)</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="s">&#39;.n.01&#39;</span><span class="p">))</span> 
+<span class="lineno">15</span>         <span class="n">y</span> <span class="o">=</span> <span class="n">wn</span><span class="o">.</span><span class="n">synset</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">category_y</span><span class="p">)</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="s">&#39;.n.01&#39;</span><span class="p">))</span> 
+<span class="lineno">16</span>         <span class="c"># enter similarity value into the matrix</span>
+<span class="lineno">17</span>         <span class="n">similarity_matrix</span><span class="p">[</span><span class="n">x_index</span><span class="p">,</span> <span class="n">y_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">path_similarity</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> 
+<span class="lineno">18</span>         <span class="c"># iterate x counter</span>
+<span class="lineno">19</span>         <span class="n">x_index</span> <span class="o">+=</span> <span class="mi">1</span>
+<span class="lineno">20</span>     <span class="c"># reinitialize x counter and iterate y counter   </span>
+<span class="lineno">21</span>     <span class="n">x_index</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="lineno">22</span>     <span class="n">y_index</span> <span class="o">+=</span> <span class="mi">1</span>
+<span class="lineno">23</span> 
+<span class="lineno">24</span> <span class="c"># convert the main diagonal of the matrix to zeros       </span>
+<span class="lineno">25</span> <span class="n">similarity_matrix</span> <span class="o">=</span> <span class="n">similarity_matrix</span> <span class="o">*</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span></code></pre></div>
+
+<p>We can then visualize this matrix using Pylab. I found <a href="http://nbviewer.ipython.org/gist/joelotz/5427209">this notebook</a> that contained some code for generating a nice comparison matrix. I borrowed that code and only made slight modifications for the current purposes. This code is as follows:</p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno"> 1</span> <span class="c"># Plot it out</span>
+<span class="lineno"> 2</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="lineno"> 3</span> <span class="n">heatmap</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">pcolor</span><span class="p">(</span><span class="n">similarity_matrix</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">pl</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">Blues</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+<span class="lineno"> 4</span> 
+<span class="lineno"> 5</span> <span class="c"># Format</span>
+<span class="lineno"> 6</span> <span class="n">fig</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">gcf</span><span class="p">()</span>
+<span class="lineno"> 7</span> <span class="n">fig</span><span class="o">.</span><span class="n">set_size_inches</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">11</span><span class="p">)</span>
+<span class="lineno"> 8</span> 
+<span class="lineno"> 9</span> <span class="c"># turn off the frame</span>
+<span class="lineno">10</span> <span class="n">ax</span><span class="o">.</span><span class="n">set_frame_on</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+<span class="lineno">11</span> 
+<span class="lineno">12</span> <span class="c"># put the major ticks at the middle of each cell</span>
+<span class="lineno">13</span> <span class="n">ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">similarity_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">minor</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="lineno">14</span> <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">similarity_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">minor</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="lineno">15</span> 
+<span class="lineno">16</span> <span class="c"># want a more natural, table-like display</span>
+<span class="lineno">17</span> <span class="n">ax</span><span class="o">.</span><span class="n">invert_yaxis</span><span class="p">()</span>
+<span class="lineno">18</span> <span class="n">ax</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">tick_top</span><span class="p">()</span>
+<span class="lineno">19</span> 
+<span class="lineno">20</span> <span class="c"># Set the labels</span>
+<span class="lineno">21</span> 
+<span class="lineno">22</span> <span class="c"># label source:https://en.wikipedia.org/wiki/Basketball_statistics</span>
+<span class="lineno">23</span> <span class="n">labels</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="lineno">24</span> <span class="k">for</span> <span class="n">category</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">:</span>
+<span class="lineno">25</span>     <span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">category</span><span class="p">)</span>
+<span class="lineno">26</span> 
+<span class="lineno">27</span> 
+<span class="lineno">28</span> <span class="c"># note I could have used nba_sort.columns but made &quot;labels&quot; instead</span>
+<span class="lineno">29</span> <span class="n">ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">minor</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="lineno">30</span> <span class="n">ax</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">minor</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="lineno">31</span> 
+<span class="lineno">32</span> <span class="c"># rotate the x-axis labels</span>
+<span class="lineno">33</span> <span class="n">pl</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">rotation</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
+<span class="lineno">34</span> 
+<span class="lineno">35</span> <span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+<span class="lineno">36</span> 
+<span class="lineno">37</span> <span class="c"># Turn off all the ticks</span>
+<span class="lineno">38</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+<span class="lineno">39</span> <span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s">&#39;equal&#39;</span><span class="p">,</span> <span class="n">adjustable</span><span class="o">=</span><span class="s">&#39;box&#39;</span><span class="p">)</span>
+<span class="lineno">40</span> 
+<span class="lineno">41</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">ax</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">get_major_ticks</span><span class="p">():</span>
+<span class="lineno">42</span>     <span class="n">t</span><span class="o">.</span><span class="n">tick1On</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="lineno">43</span>     <span class="n">t</span><span class="o">.</span><span class="n">tick2On</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="lineno">44</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">ax</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">get_major_ticks</span><span class="p">():</span>
+<span class="lineno">45</span>     <span class="n">t</span><span class="o">.</span><span class="n">tick1On</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="lineno">46</span>     <span class="n">t</span><span class="o">.</span><span class="n">tick2On</span> <span class="o">=</span> <span class="bp">False</span></code></pre></div>
+
+<p>This generates the following visualization of the semantic similiary matrix for the CIFAR-10 object categories:</p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/semantic_similarity_matrix.png" alt="semantic_similarity_matrix" />
+    
+    
+        <p class="image-caption">Semantic Similarity Matrix for CIFAR-10 Categories</p>
+    
+</div>
+
+<p>In this image, bluer colors represent higher similarity (neglecting the main diagonal which was forced to zero for better visualization). As is apparent, all of the object categories belonging to either the artifact or living_thing major branches are closely similar to one another and very different from objects in the opposite branch.  Now these semantic distances between object categories can be used for many other types of analyses.</p>
+ ]]></content>
+  </entry>
+  
+  <entry>
+    <title>Topographic Locally Competitive Algorithm</title>
+    <link rel="alternate" type="text/html" href="/programming/2015/09/15/topographic-locally-competitive-algorithm.html/?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=TopographicLocallyCompetitiveAlgorithm" />
+    <published>2015-09-15T00:00:00Z</published>
+    <updated>2015-09-15T00:00:00-04:00</updated>
+    <id>/programming/2015/09/15/topographic-locally-competitive-algorithm</id>
+    <content type="html"><![CDATA[ <p>Recent studies have shown that, in addition to the emergence of receptive fields similar to those observed in biological vision using <a href="http://dlacombejr.github.io/programming/2015/09/13/sparse-filtering-implemenation-in-theano.html">sparse representation models</a>, the self organization of said receptive fields can emerge from group sparsity constraints. Here I will briefly review research demonstrating topological organization of receptive fields using group sparsity principles and then describe a two-layer model implemented in a Locally Comptetitive Algorithm that will be termed Topographical Locally Competitive Algorithm (tLCA). </p>
+
+<!--more-->
+
+<h2 id="topographic-organization-of-receptive-fields">Topographic Organization of Receptive Fields</h2>
+
+<p>In biological vision, receptive fields in early visual cortex are organized into orientation columns where adjacent columns have selectivity close in feature space. The global appearance of selectivity to oreintation across the coritical sheet is that of smooth transitions between orientation preference of columns and the classic <em>pinwheel</em> features where orientation column selectivities meet at a <em>singularity</em> (see image below). </p>
+
+<!-- {:refdef: style="text-align: center;"}
+![placeholder](/assets/orientation_columns.png "Orientation Dominance Columns")
+{: refdef} -->
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+    <a href="http://www.ib.cnea.gov.ar/~redneu/2013/BOOKS/Principles%20of%20Neural%20Science%20-%20Kandel/gateway.ut.ovid.com/gw2/ovidweb.cgisidnjhkoalgmeho00dbookimagebookdb_7c_2fc~33.htm" title="Orientation Dominance Columns" target="_blank">
+    
+        <img src="/assets/orientation_columns.png" alt="Orientation Dominance Columns" />
+    
+    </a>
+    
+    
+        <p class="image-caption">Orientation dominance columns across the cortical surface</p>
+    
+</div>
+
+<p>A large amount of computational research has explored the mechanisms underlying such organization <a href="#swindale1996development">(Swindale, 1996)</a>. More recent research has learned the self-organization of feature detectors based on the natural statistics of images when structured sparsity is imposed <a href="#hyvarinen2001topographic">(Hyvärinen, Hoyer, &amp; Inki, 2001; Jia &amp; Karayev, 2010; Kavukcuoglu, Ranzato, Fergus, &amp; Le-Cun, 2009; Welling, Osindero, &amp; Hinton, 2002)</a>.<sup id="fnref:fn-biological_accuracy"><a href="#fn:fn-biological_accuracy" class="footnote">1</a></sup> Most of these models involve a two layers where the activations of the first layer are square rectified and projected up to a second layer based on locally defined connections. If we have activations <script type="math/tex">a^{(1)}</script> in the first layer given by:</p>
+
+<p>\begin{equation}
+a^{(1)} = \mathbf{w}^T \mathbf{x}
+\end{equation}</p>
+
+<p>where <script type="math/tex">\mathbf{w}</script> is the weight matrix and <script type="math/tex">\mathbf{x}</script> is the input data, these can then be projected up to a second layer unit <script type="math/tex">a_i^{(2)}</script> given the local connections defined by <script type="math/tex">k</script> overlapping neighborhoods <script type="math/tex">H</script>:</p>
+
+<p>\begin{equation}
+a_i^{(2)} = \sqrt{\sum_{j \in H_i} (a^{(1)}_j)^2	}
+\end{equation}</p>
+
+<p>Thus, the activation of each unit in the second level is the sum of sqares of adjacent units in the first layer as defined by a local connectivity matrix that can either be binary or have some distribution across the nieghborhood (below is an example of 3 X 3 overlapping neighborhoods). </p>
+
+<!-- {:refdef: style="text-align: center;"}
+![](/assets/grouping2.png)
+{: refdef}
+ -->
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/grouping2.png" alt="Grouping" />
+    
+    
+        <p class="image-caption">An example showing 3x3 overlapping neighborhoods</p>
+    
+</div>
+
+<p>To avoid edge artifacts, these neighborhoods are also commonly defined to be toroidal so that each unit in a given layer has an equal number of neighbors. </p>
+
+<!-- {:refdef: style="text-align: center;"}
+![](/assets/Torus_from_rectangle.gif)
+{: refdef}
+ -->
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+    <a href="https://en.wikipedia.org/wiki/File:Torus_from_rectangle.gif" title="torus" target="_blank">
+    
+        <img src="/assets/Torus_from_rectangle.gif" alt="torus" />
+    
+    </a>
+    
+    
+        <p class="image-caption">Demonstration of converting 2d plane to torus</p>
+    
+</div>
+
+<p>Thus the optimization objective for a <em>sparse-penalized least-squares reconstruction</em> model with the aforementioned architecture would be:</p>
+
+<p>\begin{equation}
+\min_{\mathbf{\alpha}\in\mathbb{R}^m}	\vert\vert \mathbf{x} - \mathbf{w}^T a^{(1)} \vert\vert^2_2+\lambda\vert\vert 	a^{(1)}	+a^{(2)}  \vert\vert_1
+\end{equation}</p>
+
+<p>where, as before, <script type="math/tex">\lambda</script> is a sparsity tradeoff parameter. </p>
+
+<h2 id="self-organization-of-receptive-fields-using-locally-competitive-algorithms">Self-Organization of Receptive Fields using Locally Competitive Algorithms</h2>
+
+<h3 id="locally-competitive-algorithm">Locally Competitive Algorithm</h3>
+
+<p>Locally competitive algorithms <a href="#rozell2007locally">(Rozell, Johnson, Baraniuk, &amp; Olshausen, 2007)</a> are dynamic models that are implementable in hardware and converge to good solutions for sparse approximation.  In these models, each unit has an state <script type="math/tex">u_m(t)</script>, and when presented with a stimulus <script type="math/tex">s(t)</script>, each unit begins accumulating activity that leaks out over time (much like a bucket with small holes on the bottom). When units reach a threshold <script type="math/tex">\lambda</script>, they begin exerting inhibition over their competitors weighted by some function based on similarity or proximity in space. The states of a given unit <script type="math/tex">m</script> is represented by the nonlinear ordinary differential equaion</p>
+
+<script type="math/tex; mode=display">\dot{u}_m(t)=\frac{1}{\tau}\bigg[b_m(t)-u_m(t)-\sum_{n\neq m}G_{m,n}a_n(t)\bigg] </script>
+
+<p>where <script type="math/tex">b_m(t)=\langle\phi_m,{x}(t)\rangle</script> represents increased activation proportional to the receptive field’s similarity to the incoming input. The internal states of each unit and thus the degree of inhibition that they can exert are expressed by a hard thresholding function which simply means that if the state of a unit is below the threshold, its internal state is zero, and if the state is above threshold, it’s internal state is a linear function of <script type="math/tex">u</script>. This inhibition is finally wieghted based on the similarity between two units <script type="math/tex">G_{m,n}=\langle\phi_m,\phi_n\rangle</script> ensuring that redundant feature representations are not used for any given input and a sparse approximation is achieved. </p>
+
+<p>A simple implementation of LCA in MATLAB is as follows (more details given later in post):</p>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno"> 1</span> <span class="k">function</span><span class="w"> </span>[a] <span class="p">=</span><span class="w"> </span><span class="nf">LCA</span><span class="p">(</span>W, X, neurons, batch_size, thresh<span class="p">)</span><span class="w"></span>
+<span class="lineno"> 2</span> 
+<span class="lineno"> 3</span> <span class="c">% get activation values (b) and similarity values (G)</span>
+<span class="lineno"> 4</span> <span class="n">b</span> <span class="p">=</span> <span class="n">W</span><span class="o">&#39;</span> <span class="o">*</span> <span class="n">X</span><span class="p">;</span>                                 <span class="c">% [neurons X examples]</span>
+<span class="lineno"> 5</span> <span class="n">G</span> <span class="p">=</span> <span class="n">W</span><span class="o">&#39;*</span> <span class="n">W</span> <span class="o">-</span> <span class="nb">eye</span><span class="p">(</span><span class="n">neurons</span><span class="p">);</span>                   <span class="c">% [neurons X neurons]</span>
+<span class="lineno"> 6</span> 
+<span class="lineno"> 7</span> <span class="c">% LCA </span>
+<span class="lineno"> 8</span> <span class="n">u</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">neurons</span><span class="p">,</span><span class="n">batch_size</span><span class="p">);</span>              <span class="c">% unit states</span>
+<span class="lineno"> 9</span> <span class="k">for</span> <span class="n">l</span> <span class="p">=</span><span class="mi">1</span><span class="p">:</span><span class="mi">10</span>
+<span class="lineno">10</span>     <span class="n">a</span> <span class="p">=</span> <span class="n">u</span> <span class="o">.*</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">u</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">);</span>             <span class="c">% internal activations</span>
+<span class="lineno">11</span>     <span class="n">u</span> <span class="p">=</span> <span class="mf">0.9</span> <span class="o">*</span> <span class="n">u</span> <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="p">(</span><span class="n">b</span> <span class="o">-</span> <span class="n">G</span> <span class="o">*</span> <span class="n">a</span><span class="p">);</span>       <span class="c">% update unit states</span>
+<span class="lineno">12</span> <span class="k">end</span>
+<span class="lineno">13</span> <span class="n">a</span> <span class="p">=</span> <span class="n">u</span> <span class="o">.*</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">u</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">);</span>                 <span class="c">% [groups, batch_size]</span></code></pre></div>
+
+<p>The distribution of activation across both the population and examples is very sparsely distributed, with most activation values at zero, and only very few greater-than-zero values. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/LCA_activation2.png" alt="LCA_activation" />
+    
+    
+        <p class="image-caption">Activation distribution and sample for LCA</p>
+    
+</div>
+
+<p>Observing the weights that are learned, we can also see that, consistent with previous research, LCA learns Gabor-like receptive fields. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/LCA_receptive_fields.png" alt="LCA_weights" />
+    
+    
+        <p class="image-caption">Receptive fields learned using LCA</p>
+    
+</div>
+
+<p>It is also interesting to consider the reconstruction performance of the learned receptive fields. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/LCA_reconstruction2.png" alt="LCA_reconstruction" />
+    
+    
+        <p class="image-caption">Left: original image; Right: reconstructed image</p>
+    
+</div>
+
+<p>The reconstructed image clearly captures the most important structural features of the original image and removes much of the noise. </p>
+
+<h3 id="tlca-model">tLCA Model</h3>
+
+<p>Here I will introduce a two-layer Locally Competitive Algorithm that I will call Topographical Locally Competitive Algorithm (tLCA). The general procedure is to first determine the initial activity of the first layer, immediately project it to the second layer in a fast feedforward manner, perform LCA at the second layer, project the activity back down to the first layer, and then perform LCA on the first layer (see figure for schematic illustration).</p>
+
+<!-- {:refdef: style="text-align: center;"}
+![](/assets/tLCA.png)
+{: refdef}
+ -->
+
+<!-- _includes/image.html -->
+<div class="image-wrapper-long">
+    
+        <img src="/assets/tLCA.png" alt="network diagram" />
+    
+    
+        <p class="image-caption">Illustration of the network architecture and procedure. The activation for the first layer (blue) is calculated and then local connections from the second layer (orange) to the first allow for it to pool over a neighborhood of units (cyan). Local competition is then performed on the second layer. In the right panel, after LCA on the second layer terminates, activations are then projected back down to the first layer via local connections. Finally LCA on the first layer is conducted until termination. </p>
+    
+</div>
+
+<p>Now we will walk through the steps of bulding the model (to see all code navigate to my <a href="https://github.com/dlacombejr/tLCA">tLCA repository</a>). To begin building the model, we will first define some parameters: </p>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="c">% set environment parameters</span>
+<span class="lineno">2</span> <span class="n">neurons</span> <span class="p">=</span> <span class="mi">121</span><span class="p">;</span>      				<span class="c">% number of neurons</span>
+<span class="lineno">3</span> <span class="n">patch_size</span> <span class="p">=</span> <span class="mi">256</span><span class="p">;</span>   				<span class="c">% patch size</span>
+<span class="lineno">4</span> <span class="n">batch_size</span> <span class="p">=</span> <span class="mi">1000</span><span class="p">;</span>  				<span class="c">% batch size</span>
+<span class="lineno">5</span> <span class="n">thresh</span> <span class="p">=</span> <span class="mf">0.1</span><span class="p">;</span>       				<span class="c">% LCA threshold </span>
+<span class="lineno">6</span> <span class="n">h</span> <span class="p">=</span> <span class="p">.</span><span class="mi">005</span><span class="p">;</span>           				<span class="c">% learning rate</span>
+<span class="lineno">7</span> <span class="n">blocksize</span> <span class="p">=</span> <span class="mi">3</span><span class="p">;</span>     				<span class="c">% neighborhood size</span>
+<span class="lineno">8</span> <span class="n">maxIter</span> <span class="p">=</span> <span class="mi">1000</span><span class="p">;</span>    				<span class="c">% maximum number of iterations</span></code></pre></div>
+
+<p>We can then randomly initialize the wieghts of the network and constrain them to lie on the <script type="math/tex">\ell_2</script> ball via normalization:</p>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">W</span> <span class="p">=</span> <span class="nb">randn</span><span class="p">(</span><span class="n">patch_size</span><span class="p">,</span> <span class="n">neurons</span><span class="p">);</span> 		<span class="c">% randomly initialize wieghts</span>
+<span class="lineno">2</span> <span class="n">W</span> <span class="p">=</span> <span class="n">W</span> <span class="o">*</span> <span class="nb">diag</span><span class="p">(</span><span class="mi">1</span> <span class="o">./</span> <span class="nb">sqrt</span><span class="p">(</span><span class="n">sum</span><span class="p">(</span><span class="n">W</span> <span class="o">.^</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)));</span>	<span class="c">% normalize the weights</span></code></pre></div>
+
+<p>Next we need to define the local connectivities between the first layer and the second layer. These weights are held constant and are not trained like the weights of the first layer that connect to the input. To do so, we define a function <code>gridGenerator</code> with arguments <code>neurons</code> and <code>filterSize</code> and returns a <code>group x neurons</code> matrix <code>blockMaster</code> that contains binary row vectors with filled entries corresponding to neurons that belong to the <script type="math/tex">i^{th}</script> group. </p>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno"> 1</span> <span class="k">function</span><span class="w"> </span>blockMaster <span class="p">=</span><span class="w"> </span><span class="nf">gridGenerator</span><span class="p">(</span>neurons, filterSize<span class="p">)</span><span class="w"></span>
+<span class="lineno"> 2</span> 
+<span class="lineno"> 3</span> <span class="c">% determine grid dimensions</span>
+<span class="lineno"> 4</span> <span class="n">gridSize</span> <span class="p">=</span> <span class="nb">sqrt</span><span class="p">(</span><span class="n">neurons</span><span class="p">);</span>
+<span class="lineno"> 5</span> 
+<span class="lineno"> 6</span> <span class="c">% create matrix with grids</span>
+<span class="lineno"> 7</span> <span class="n">blockMaster</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">neurons</span><span class="p">,</span> <span class="n">neurons</span><span class="p">);</span>
+<span class="lineno"> 8</span> <span class="n">c</span> <span class="p">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="lineno"> 9</span> <span class="n">x</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">gridSize</span><span class="p">,</span> <span class="n">gridSize</span><span class="p">);</span>
+<span class="lineno">10</span> <span class="n">x</span><span class="p">(</span><span class="k">end</span> <span class="o">-</span> <span class="p">(</span><span class="n">filterSize</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span><span class="k">end</span><span class="p">,</span> <span class="k">end</span> <span class="o">-</span> <span class="p">(</span><span class="n">filterSize</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span><span class="k">end</span><span class="p">)</span> <span class="p">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="lineno">11</span> <span class="n">x</span> <span class="p">=</span> <span class="nb">circshift</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]);</span>
+<span class="lineno">12</span> <span class="k">for</span> <span class="nb">i</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="n">gridSize</span> 
+<span class="lineno">13</span>     <span class="k">for</span> <span class="nb">j</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="n">gridSize</span> 
+<span class="lineno">14</span>         <span class="n">temp</span> <span class="p">=</span> <span class="nb">circshift</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[</span><span class="nb">i</span><span class="p">,</span> <span class="nb">j</span><span class="p">]);</span>
+<span class="lineno">15</span>         <span class="n">blockMaster</span><span class="p">(</span><span class="n">c</span><span class="p">,:)</span> <span class="p">=</span> <span class="n">temp</span><span class="p">(:)</span><span class="o">&#39;</span><span class="p">;</span>
+<span class="lineno">16</span>         <span class="n">c</span> <span class="p">=</span> <span class="n">c</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span> 
+<span class="lineno">17</span>     <span class="k">end</span>
+<span class="lineno">18</span> <span class="k">end</span></code></pre></div>
+
+<p>This works by first creating a binary matrix with ones over the group centered at <code>x(1,1)</code> (lines 9 - 11); because it is toriodal, there are ones on opposite sides of the matrix. Then, for all groups, it shifts this primary matrix around until all group local connections have been created and saved into the master matrix. </p>
+
+<p>Now that we have a means of projecting the first layer activation up to the second layer, we need to define how inhibition between units in the second layer should be weighted. We can define the mutual inhibiiton between two units in the second layer as being proportional to how many units in the first layer share their local connections. This can be conveniently created as follows:</p>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="c">% create group inhibition weight matrix</span>
+<span class="lineno">2</span> <span class="n">G2</span> <span class="p">=</span> <span class="n">blockMaster</span> <span class="o">*</span> <span class="n">blockMaster</span><span class="o">&#39;</span><span class="p">;</span> 
+<span class="lineno">3</span> <span class="n">G2</span> <span class="p">=</span> <span class="n">G2</span> <span class="o">./</span> <span class="n">max</span><span class="p">(</span><span class="n">max</span><span class="p">(</span><span class="n">G2</span><span class="p">));</span> 
+<span class="lineno">4</span> <span class="n">G2</span> <span class="p">=</span> <span class="n">G2</span> <span class="o">-</span> <span class="nb">eye</span><span class="p">(</span><span class="n">neurons</span><span class="p">);</span></code></pre></div>
+
+<p>Lastly we need to also set up a similarity matrix for all pairwise connections between units. In the traditional LCA, this was computed as the similarity between receptive fields as described previously. Here we instead compute similarity as Euclidean distance in simulated cortical space. We can compute the distance of each unit to all other units using the function <code>lateral_connection_generator</code>:</p>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno"> 1</span> <span class="k">function</span><span class="w"> </span>master <span class="p">=</span><span class="w"> </span><span class="nf">lateral_connection_generator</span><span class="p">(</span>neurons<span class="p">)</span><span class="w"></span>
+<span class="lineno"> 2</span> 
+<span class="lineno"> 3</span> <span class="c">% define grid size</span>
+<span class="lineno"> 4</span> <span class="n">dim</span> <span class="p">=</span> <span class="nb">sqrt</span><span class="p">(</span><span class="n">neurons</span><span class="p">);</span>
+<span class="lineno"> 5</span> 
+<span class="lineno"> 6</span> <span class="c">% create list of all pairwise x-y coordinates </span>
+<span class="lineno"> 7</span> <span class="n">x</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">dim</span> <span class="o">*</span> <span class="n">dim</span><span class="p">,</span> <span class="mi">2</span><span class="p">);</span> 
+<span class="lineno"> 8</span> <span class="n">c</span> <span class="p">=</span> <span class="mi">1</span><span class="p">;</span> 
+<span class="lineno"> 9</span> <span class="k">for</span> <span class="nb">i</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="n">dim</span>
+<span class="lineno">10</span>     <span class="k">for</span> <span class="nb">j</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="n">dim</span>
+<span class="lineno">11</span>         <span class="n">x</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">:)</span> <span class="p">=</span> <span class="p">[</span><span class="nb">i</span><span class="p">,</span> <span class="nb">j</span><span class="p">];</span> 
+<span class="lineno">12</span>         <span class="n">c</span> <span class="p">=</span> <span class="n">c</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span> 
+<span class="lineno">13</span>     <span class="k">end</span>
+<span class="lineno">14</span> <span class="k">end</span>
+<span class="lineno">15</span> 
+<span class="lineno">16</span> <span class="c">% create distance matrix of each cell from the center of the matrix</span>
+<span class="lineno">17</span> <span class="n">center_index</span> <span class="p">=</span> <span class="nb">ceil</span><span class="p">(</span><span class="n">neurons</span> <span class="o">/</span> <span class="mi">2</span><span class="p">);</span>
+<span class="lineno">18</span> <span class="n">center</span> <span class="p">=</span> <span class="n">x</span><span class="p">(</span><span class="n">center_index</span><span class="p">,</span> <span class="p">:);</span> 
+<span class="lineno">19</span> <span class="n">temp</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span> 
+<span class="lineno">20</span> <span class="k">for</span> <span class="nb">j</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="nb">size</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="lineno">21</span>     <span class="n">temp</span><span class="p">(</span><span class="nb">j</span><span class="p">)</span> <span class="p">=</span> <span class="n">norm</span><span class="p">(</span><span class="n">center</span> <span class="o">-</span> <span class="n">x</span><span class="p">(</span><span class="nb">j</span><span class="p">,</span> <span class="p">:));</span> 
+<span class="lineno">22</span> <span class="k">end</span>
+<span class="lineno">23</span> <span class="n">temp</span> <span class="p">=</span> <span class="nb">reshape</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="p">[</span><span class="n">dim</span><span class="p">,</span> <span class="n">dim</span><span class="p">]);</span> 
+<span class="lineno">24</span> 
+<span class="lineno">25</span> <span class="c">% shift the center of the matrix (zero distance) to the bottom right corner</span>
+<span class="lineno">26</span> <span class="n">temp</span> <span class="p">=</span> <span class="nb">circshift</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="p">[</span><span class="n">center_index</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">center_index</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]);</span> 
+<span class="lineno">27</span> 
+<span class="lineno">28</span> <span class="c">% create master matrix </span>
+<span class="lineno">29</span> <span class="n">master</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">neurons</span><span class="p">,</span> <span class="n">neurons</span><span class="p">);</span>
+<span class="lineno">30</span> <span class="n">c</span> <span class="p">=</span> <span class="mi">1</span><span class="p">;</span> 
+<span class="lineno">31</span> <span class="k">for</span> <span class="nb">i</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="n">dim</span>
+<span class="lineno">32</span>     <span class="k">for</span> <span class="nb">j</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="n">dim</span>
+<span class="lineno">33</span>         <span class="n">new</span> <span class="p">=</span> <span class="nb">circshift</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="p">[</span><span class="nb">j</span><span class="p">,</span> <span class="nb">i</span><span class="p">]);</span> 
+<span class="lineno">34</span>         <span class="n">master</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="p">:)</span> <span class="p">=</span> <span class="n">new</span><span class="p">(:)</span><span class="o">&#39;</span><span class="p">;</span> 
+<span class="lineno">35</span>         <span class="n">c</span> <span class="p">=</span> <span class="n">c</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span> 
+<span class="lineno">36</span>     <span class="k">end</span>
+<span class="lineno">37</span> <span class="k">end</span></code></pre></div>
+
+<p>Now we are ready to actually run the neural network and analyze its characteristics. Image patches that were preselected from natural images and preprocessed through normalization are read in and assigned to the variable <code>X</code>. Then we loop through each training iteration and perform the following procedure:</p>
+
+<ul>
+  <li>Normalize the weights as a form of regularization (as done previously)</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">W</span> <span class="p">=</span> <span class="n">W</span> <span class="o">*</span> <span class="nb">diag</span><span class="p">(</span><span class="mi">1</span> <span class="o">./</span> <span class="nb">sqrt</span><span class="p">(</span><span class="n">sum</span><span class="p">(</span><span class="n">W</span> <span class="o">.^</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)));</span>		<span class="c">% normalize the weights</span></code></pre></div>
+
+<ul>
+  <li>Rapidly feed forward the activation through first and on to the second level</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">b1</span> <span class="p">=</span> <span class="n">W</span><span class="o">&#39;</span> <span class="o">*</span> <span class="n">X</span><span class="p">;</span> 				   	<span class="c">% [neurons X examples]</span>
+<span class="lineno">2</span> <span class="n">b2</span> <span class="p">=</span> <span class="p">(</span><span class="n">blockMaster</span> <span class="o">*</span> <span class="nb">sqrt</span><span class="p">(</span><span class="n">b1</span> <span class="o">.^</span> <span class="mi">2</span><span class="p">))</span> <span class="o">/</span> <span class="n">blocksize</span><span class="p">;</span> 	<span class="c">% [groups X examples]</span></code></pre></div>
+
+<ul>
+  <li>Perform LCA at layer 2</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">u2</span> <span class="p">=</span> <span class="nb">zeros</span><span class="p">(</span><span class="n">groups</span><span class="p">,</span><span class="n">batch_size</span><span class="p">);</span>
+<span class="lineno">2</span> <span class="k">for</span> <span class="nb">i</span> <span class="p">=</span> <span class="mi">1</span><span class="p">:</span><span class="mi">5</span>
+<span class="lineno">3</span>     <span class="n">a2</span> <span class="p">=</span> <span class="n">u2</span> <span class="o">.*</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">u2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">);</span>
+<span class="lineno">4</span>     <span class="n">u2</span> <span class="p">=</span> <span class="mf">0.9</span> <span class="o">*</span> <span class="n">u2</span> <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="p">(</span><span class="n">b2</span> <span class="o">-</span> <span class="n">G2</span> <span class="o">*</span> <span class="n">a2</span><span class="p">);</span>        
+<span class="lineno">5</span> <span class="k">end</span>
+<span class="lineno">6</span> <span class="n">a2</span><span class="p">=</span><span class="n">u2</span><span class="o">.*</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">u2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">);</span> 				<span class="c">% [groups, batch_size]</span></code></pre></div>
+
+<ul>
+  <li>Project the activations back down to the first layer</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">a1</span> <span class="p">=</span> <span class="n">blockMaster</span><span class="o">&#39;</span> <span class="o">*</span> <span class="n">a2</span><span class="p">;</span> 				<span class="c">% [neurons X batch_size]</span>
+<span class="lineno">2</span> <span class="n">a1</span> <span class="p">=</span> <span class="n">a1</span> <span class="o">.*</span> <span class="n">b1</span><span class="p">;</span> 					<span class="c">% weight by first level activation</span></code></pre></div>
+
+<ul>
+  <li>Perform LCA on the first layer</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">u1</span> <span class="p">=</span> <span class="n">a1</span><span class="p">;</span>
+<span class="lineno">2</span> <span class="k">for</span> <span class="n">l</span> <span class="p">=</span><span class="mi">1</span><span class="p">:</span><span class="mi">10</span>
+<span class="lineno">3</span>     <span class="n">a1</span><span class="p">=</span><span class="n">u1</span><span class="o">.*</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">u1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">);</span>
+<span class="lineno">4</span>     <span class="n">u1</span> <span class="p">=</span> <span class="mf">0.9</span> <span class="o">*</span> <span class="n">u1</span> <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="p">(</span><span class="n">b1</span> <span class="o">-</span> <span class="n">G1</span><span class="o">*</span><span class="n">a1</span><span class="p">);</span>
+<span class="lineno">5</span> <span class="k">end</span>
+<span class="lineno">6</span> <span class="n">a1</span><span class="p">=</span><span class="n">u1</span><span class="o">.*</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">u1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">thresh</span><span class="p">);</span> 				<span class="c">% [groups, batch_size]</span></code></pre></div>
+
+<ul>
+  <li>Update the weights</li>
+</ul>
+
+<div class="highlight"><pre><code class="language-matlab" data-lang="matlab"><span class="lineno">1</span> <span class="n">W</span> <span class="p">=</span> <span class="n">W</span> <span class="o">+</span> <span class="n">h</span> <span class="o">*</span> <span class="p">((</span><span class="n">X</span> <span class="o">-</span> <span class="n">W</span> <span class="o">*</span> <span class="n">a1</span><span class="p">)</span> <span class="o">*</span> <span class="n">a1</span><span class="o">&#39;</span><span class="p">);</span></code></pre></div>
+
+<p>Running this code using <code>maxIter</code> as set above takes just over a minute. The features that are learned replicate those found in the literature and they also self organize as has been found in the studies cited. An important observation is that the receptive fields organize by both orientation <em>and</em> spatial frequency, whereas lateral connections alone (run <code>latLCA.m</code> for comparison) only leads to some organization of orientation. Therefore, performing LCA in a two-layer network as we did here seems to be necessary to get good self organization along both dimensions. It is also important to note that phase appears to organize randomly, and this is due to the square rectification of the first layer (i.e., a counter-phase stimulus may result in a negative activation, but this will be rectified into a positive activation). </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/tLCA_weights.png" alt="tLCA_weights" />
+    
+    
+        <p class="image-caption">tLCA receptive fields</p>
+    
+</div>
+
+<p>The activation distributions of both the first and second level are very sparse, just as in regular LCA. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/tLCA_activation.png" alt="tLCA_activation" />
+    
+    
+        <p class="image-caption">tLCA activation distributions for both levels</p>
+    
+</div>
+
+<p>When we look at the activity distribution across cortical space for both levels of the network, we see that they are very localized. Also note that there is a high degree of overlap between activations across the two levels. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/tLCA_activity_space.png" alt="tLCA_activity_space" />
+    
+    
+        <p class="image-caption">tLCA activation distributions across the first and second level of the hierarchy</p>
+    
+</div>
+
+<p>We can also see that the reconstruction capability of tLCA is on par with LCA. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/tLCA_reconstruction.png" alt="tLCA_reconstruction" />
+    
+    
+        <p class="image-caption">tLCA reconstruction. Left: original image; Right: reconstructed image</p>
+    
+</div>
+
+<p>The reason for the poorer reconstruction performance is because of the smaller number of neurons, their more dependent activity, and fewer iterations in training. </p>
+
+<h2 id="references">References</h2>
+<!-- <center><b>References</b></center>
+ -->
+<ol class="bibliography"><li><span id="antolik2011development">Antolı́k Ján, &amp; Bednar, J. A. (2011). Development of maps of simple and complex cells in the primary visual cortex. <i>Frontiers In Computational Neuroscience</i>, <i>5</i>.</span></li>
+<li><span id="hyvarinen2001topographic">Hyvärinen, A., Hoyer, P., &amp; Inki, M. (2001). Topographic independent component analysis. <i>Neural Computation</i>, <i>13</i>(7), 1527–1558.</span></li>
+<li><span id="jia2010self">Jia, Y., &amp; Karayev, S. (2010). Self-Organizing Sparse Codes.</span></li>
+<li><span id="kavukcuoglu2009learning">Kavukcuoglu, K., Ranzato, M. A., Fergus, R., &amp; Le-Cun, Y. (2009). Learning invariant features through topographic filter maps. In <i>Computer Vision and Pattern Recognition, 2009. CVPR 2009. IEEE Conference on</i> (pp. 1605–1612). IEEE.</span></li>
+<li><span id="rozell2007locally">Rozell, C., Johnson, D., Baraniuk, R., &amp; Olshausen, B. (2007). Locally competitive algorithms for sparse approximation. In <i>Image Processing, 2007. ICIP 2007. IEEE International Conference on</i> (Vol. 4, pp. IV–169). IEEE.</span></li>
+<li><span id="swindale1996development">Swindale, N. V. (1996). The development of topography in the visual cortex: a review of models. <i>Network: Computation In Neural Systems</i>, <i>7</i>(2), 161–247.</span></li>
+<li><span id="welling2002learning">Welling, M., Osindero, S., &amp; Hinton, G. E. (2002). Learning sparse topographic representations with products of student-t distributions. In <i>Advances in neural information processing systems</i> (pp. 1359–1366).</span></li></ol>
+<hr />
+<div class="footnotes">
+  <ol>
+    <li id="fn:fn-biological_accuracy">
+      <p>Although these models have the advantage of being driven by natural image statistics, they also suffer from some biological implausibility <a href="#antolik2011development">(Antolı́k Ján &amp; Bednar, 2011)</a>. <a href="#fnref:fn-biological_accuracy" class="reversefootnote">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+ ]]></content>
+  </entry>
+  
+  <entry>
+    <title>Sparse Filtering in Theano</title>
+    <link rel="alternate" type="text/html" href="/programming/2015/09/13/sparse-filtering-implemenation-in-theano.html/?utm_source=RSS&amp;utm_medium=RSS&amp;utm_campaign=SparseFilteringinTheano" />
+    <published>2015-09-13T00:00:00Z</published>
+    <updated>2015-09-13T00:00:00-04:00</updated>
+    <id>/programming/2015/09/13/sparse-filtering-implemenation-in-theano</id>
+    <content type="html"><![CDATA[ <p>Sparse Filtering is a form of unsupervised feature learning that learns a sparse representation of the input data without directly modeling it. This algorithm is attractive because it is essentially hyperparameter-free making it much easier to implement relative to other existing algorithms, such as Restricted Boltzman Machines, which have a large number of them. Here I will review a selection of sparse representation models for computer vision as well as Sparse Filtering’s place within that space and then demonstrate an implementation of the algorithm in Theano combined with the L-BFGS method in SciPy’s optimizaiton library. </p>
+
+<!--more-->
+
+<h2 id="sparse-representation-models-for-computer-vision">Sparse Representation Models for Computer Vision</h2>
+
+<p>Models employing sparsity-inducing norms are ubiquitous in the statistical modeling of images. Their employment is strongly motivated by the inextricably woven web of a sparse code’s efficiency, functionality, and input distribution match — a rather uncanny alignment of properties. Representing an input signal with a few number of active units has obvious benefits in efficient energy usage; the fewer units that can be used to provide a good representation, without breaking the system, the better. A sparse coding scheme also has logically demonstrable functional advantages over the other possible types (i.e., local and dense codes) in that it has high representational and memory capacites (representatoinal capacity grows exponentially with average activity ratio and short codes do not occupy much memory), fast learning (only a few units have to be updated), good fault tolerance (the failure or death of a unit is not entirely crippling), and controlled interference (many representations can be active simultaneously)<a href="#foldiak1995sparse">(Földiák &amp; Young, 1995)</a>. Finally, and perhaps most mysteriously, a sparse code is a good representational scheme because it matches the sparse structure, or non-Gaussianity of natural images <a href="#simoncelli2001natural">(Simoncelli &amp; Olshausen, 2001)</a>. That is, images can be represented as a combination of a sparse number of elements. Because a sparse code matches the sparse distribution of natural scenes, this provides a good statistiacal model of the input, which is useful because…</p>
+
+<blockquote><p>...such models provide the prior probabilities needed in Bayesian inference, or, in general, the prior information that the visual system needs on the environment. These tasks include denoising and completion of missing data. So, sparse coding models are useful for the visual system simply because they provide a better statistical model of the input data.</p><cite><a href="#hyvarinen2009natural">(Hyvärinen, Hurri, &amp; Hoyer, 2009)</a></cite></blockquote>
+
+<h3 id="sparse-coding">Sparse Coding</h3>
+
+<p>In the mid 90s, a seminal article by Olshausen and Field marked the beginning of a proliferation of research in theoretical neuroscience, computer vision, and machine learning more generally. There, they first introduced the computational model of sparse coding <a href="#olshausen1996emergence">(Olshausen &amp; Field, 1996)</a>  and demonstrated the ability to learn units with receptive fields strongly resembling those observed in biological vision when trained on natural images. Sparse coding is based on the assumption that an input image <script type="math/tex">{I(x, y)}</script> can be modeled as a linear combination of sparsely activated representational units <script type="math/tex">{\phi_i(x, y)}</script>:</p>
+
+<p>\begin{equation}
+{I(x, y)} = \sum_i a_i \phi_i(x, y)
+\end{equation}</p>
+
+<p>Given this linear generative model of images, the goal of sparse coding is then to find some representational units <script type="math/tex">{\phi_i(x, y)}</script> that can be used to represent an image using a sparse activity coefficient vector <script type="math/tex">a</script> (i.e., one that has a leptokurtotic distribution with a large peak around zero and heavy tails as can be seen in the figure below). </p>
+
+<p><img src="/assets/sparse_gaussian_comp.png" alt="placeholder" title="Comparison Between Gaussian and non-Gaussian Distribution" /></p>
+
+<p>The optmization problem for finding such a sparse code can be formalized by minimizing the following cost function:</p>
+
+<p>\begin{equation}
+	E = - {\sum_{x, y} \bigg[ {I(x, y)} - \sum_i a_i \phi_i(x, y) \bigg] ^2} - {\sum_i }  S\Big(\frac{a_i} {\sigma}\Big)
+\end{equation}</p>
+
+<p>where <script type="math/tex">S(x)</script> is some non-linear function that penalizes non-sparse activations and <script type="math/tex">\sigma</script> is a scaling constant. We can see that this is basically a combination of a reconstruction error and a sparsity cost, what can be referred to as <em>sparse-penalized least-squares reconstruction</em> and can be generally represented by:</p>
+
+<p>\begin{equation}
+\text{cost = [reconstruction error] + [sparseness]}
+\end{equation}</p>
+
+<p>More generally, this form of problem falls under the more general class of sparse approximation where a good subset of a dictionary <script type="math/tex">\mathbf{D}</script> must be found to reconstruct the data:</p>
+
+<p>\begin{equation}
+\min_{\mathbf{\alpha}\in\mathbb{R}^m}	\frac{1}{2}	\vert\vert \mathbf{x} - \mathbf{D}\alpha\vert\vert^2_2+\lambda\vert\vert \alpha\vert\vert_1
+\end{equation}</p>
+
+<p>However, in this case, <script type="math/tex">\mathbf{D}</script> is not known and thus makes this an unsupervised learning problem. </p>
+
+<!-- ### Independent Components Analysis
+
+Sparse coding can be formalized probabalistically as independent component analysis (ICA), a statistical generative model that produces latent variables assumed to be independent. Consider a set of random variables, $$s_1, ..., s_n$$. We can define the independence between this set of variables formally as a <em>factorizable</em> joint pdf: 
+
+\begin{equation}
+p(s_1, ...,s_n) = \prod p_i(s_i)
+\end{equation}
+
+Thus, knowing any information about the values that a given variable $$s_i$$ gives us no predictive power in estimating the values of any other variable in the set. 
+
+Optimal measure of sparsity is 
+
+\begin{equation}
+h_{opt}(s^2) = \text{log} \, p_s(s)
+\end{equation} -->
+
+<!-- 
+### Universal Cortical Algorithm -->
+
+<h2 id="sparse-filtering">Sparse Filtering</h2>
+
+<p>Sparse Filtering <a href="#ngiam2011sparse">(Ngiam, Chen, Bhaskar, Koh, &amp; Ng, 2011)</a> is an unsupervised learning technique that does not directly model the data (i.e., it has no reconstruction error term in the cost function). The goal of the algorithm is to learn a dictionary <script type="math/tex">\mathbf{D}</script> that provides a sparse representation by minimizing the normalized entries in a feature value matrix. For each iteration of the algorithm: </p>
+
+<ol>
+  <li><script type="math/tex">\ell_2</script> normalization across rows</li>
+  <li><script type="math/tex">\ell_2</script> normalization across columns</li>
+  <li>Objective function = <script type="math/tex">\ell_1</script> norm of normalized entries</li>
+</ol>
+
+<p>The remaining portion of this subsection is an excerpt from <a href="#hahn2015deep">(Hahn, Lewkowitz, Lacombe Jr, &amp; Barenholtz, 2015)</a>:</p>
+
+<p>Let <script type="math/tex">\mathbf{F}</script> be the feature value matrix to be normalized, summed, and minimized. The components </p>
+
+<p>\begin{equation}
+f^{(i)}_j
+\end{equation}</p>
+
+<p>represent the <script type="math/tex">j^{\text{th}}</script> feature value (<script type="math/tex">j^{\text{th}}</script> row) for the <script type="math/tex">i^{\text{th}}</script> example (<script type="math/tex">i^{\text{th}}</script> column), where </p>
+
+<p>\begin{equation}
+f^{(i)}_j=\mathbf{w}_j^T\mathbf{x}^{(i)}
+\end{equation}</p>
+
+<p>Here, the <script type="math/tex">\mathbf{x}^{(i)}</script> are the input patches and  <script type="math/tex">\mathbf{W}</script> is the weight matrix. Initially random, the weight matrix is updated iteratively in order to minimize the Objective Function.</p>
+
+<p>In the first step of the optimization scheme,</p>
+
+<p>\begin{equation}
+\widetilde{\mathbf{f}}_j=\frac{\mathbf{f}_j}{\vert\vert\mathbf{f}_j\vert\vert_2}
+\end{equation}</p>
+
+<p>Each feature row is treated as a vector, and mapped to the unit ball by dividing by its <script type="math/tex">\ell_2</script>-norm. This has the effect of giving each feature approximately the same variance. </p>
+
+<p>The second step is to normalize across the columns, which again maps the entries to the unit ball. This makes the rows about equally active,  introducing competition between the features and thus removing the need for an orthogonal basis. Sparse filtering prevents degenerate situations in which the same features are always active <a href="#ngiam2011sparse">(Ngiam, Chen, Bhaskar, Koh, &amp; Ng, 2011)</a>. </p>
+
+<p>\begin{equation}
+\hat{\mathbf{f}}^{(i)}=\frac{\widetilde{\mathbf{f}}^{(i)}}{\vert\vert\widetilde{\mathbf{f}}^{(i)}\vert\vert_2}
+\end{equation}</p>
+
+<p>The normalized features are optimized for sparseness by minimizing the <script type="math/tex">\ell_1</script> norm. That is, minimize the Objective Function, the sum of the absolute values of all the entries of <script type="math/tex">\mathbf{F}</script>. For datasets of <script type="math/tex">M</script> examples we have the sparse filtering objective:</p>
+
+<!-- \begin{equation}
+ -->
+
+<script type="math/tex; mode=display">\text{minimize}\quad \sum_{i=1}^M \left\vert\left\vert \hat{\mathbf{f}}^{(i)}\right\vert\right\vert_1= \sum_{i=1}^M \left\vert\left\vert \frac{\widetilde{\mathbf{f}}^{(i)}}{\vert\vert\widetilde{\mathbf{f}}^{(i)}\vert\vert_2}\right\vert\right\vert_1</script>
+<!-- \end{equation}
+ -->
+
+<p>The sparse filtering objective is minimized using a Limited-memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) algorithm, a common iterative method for solving unconstrained nonlinear optimization problems.</p>
+
+<h2 id="implementation-in-theano">Implementation in Theano</h2>
+
+<p>Theano is a powerful Python library that allows the user to define and optimize functions that are compiled to machine code for faster run time performance. One of the niceset features of this package is that it performs automatic symbolic differentation. This means we can simply define a model and its cost function and Theano will calculate the gradients for us! This frees the user from analytically deriving the gradients and allows us to explore many different model-cost combinations much more quickly. However, one of the drawbacks of this library is that it does not come prepackaged with more sophisticated optimization algorithms, like L-BFGS. Other Python libraries, such as SciPy’s optimize library do contain these optimization algorithms and here I will show how they can be integrated with Theano to optimize sparse filters with respect to their cost function described above. </p>
+
+<p>First we define a SparseFiter class which performs the normalization scheme formalized above. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno"> 1</span> <span class="kn">import</span> <span class="nn">theano</span>
+<span class="lineno"> 2</span> <span class="kn">from</span> <span class="nn">theano</span> <span class="kn">import</span> <span class="n">tensor</span> <span class="k">as</span> <span class="n">t</span>
+<span class="lineno"> 3</span> 
+<span class="lineno"> 4</span> <span class="k">class</span> <span class="nc">SparseFilter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="lineno"> 5</span> 
+<span class="lineno"> 6</span>     <span class="sd">&quot;&quot;&quot; Sparse Filtering &quot;&quot;&quot;</span>
+<span class="lineno"> 7</span> 
+<span class="lineno"> 8</span>     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+<span class="lineno"> 9</span> 
+<span class="lineno">10</span>         <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno">11</span> <span class="sd">        Build a sparse filtering model.</span>
+<span class="lineno">12</span> 
+<span class="lineno">13</span> <span class="sd">        Parameters:</span>
+<span class="lineno">14</span> <span class="sd">        ----------</span>
+<span class="lineno">15</span> <span class="sd">        w : ndarray</span>
+<span class="lineno">16</span> <span class="sd">            Weight matrix randomly initialized.</span>
+<span class="lineno">17</span> <span class="sd">        x : ndarray (symbolic Theano variable)</span>
+<span class="lineno">18</span> <span class="sd">            Data for model.</span>
+<span class="lineno">19</span> <span class="sd">        &quot;&quot;&quot;</span>
+<span class="lineno">20</span> 
+<span class="lineno">21</span>         <span class="c"># assign inputs to sparse filter</span>
+<span class="lineno">22</span>         <span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">=</span> <span class="n">w</span>
+<span class="lineno">23</span>         <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span>
+<span class="lineno">24</span> 
+<span class="lineno">25</span>     <span class="k">def</span> <span class="nf">feed_forward</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="lineno">26</span> 
+<span class="lineno">27</span>         <span class="sd">&quot;&quot;&quot; Performs sparse filtering normalization procedure &quot;&quot;&quot;</span>
+<span class="lineno">28</span> 
+<span class="lineno">29</span>         <span class="n">f</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>               <span class="c"># initial activation values</span>
+<span class="lineno">30</span>         <span class="n">fs</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">f</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span>              <span class="c"># numerical stability</span>
+<span class="lineno">31</span>         <span class="n">l2fs</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">fs</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>   <span class="c"># l2 norm of row</span>
+<span class="lineno">32</span>         <span class="n">nfs</span> <span class="o">=</span> <span class="n">fs</span> <span class="o">/</span> <span class="n">l2fs</span><span class="o">.</span><span class="n">dimshuffle</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">&#39;x&#39;</span><span class="p">)</span>      <span class="c"># normalize rows</span>
+<span class="lineno">33</span>         <span class="n">l2fn</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">nfs</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>  <span class="c"># l2 norm of column</span>
+<span class="lineno">34</span>         <span class="n">f_hat</span> <span class="o">=</span> <span class="n">nfs</span> <span class="o">/</span> <span class="n">l2fn</span><span class="o">.</span><span class="n">dimshuffle</span><span class="p">(</span><span class="s">&#39;x&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>   <span class="c"># normalize columns</span>
+<span class="lineno">35</span> 
+<span class="lineno">36</span>         <span class="k">return</span> <span class="n">f_hat</span>
+<span class="lineno">37</span> 
+<span class="lineno">38</span>     <span class="k">def</span> <span class="nf">get_cost_grads</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="lineno">39</span> 
+<span class="lineno">40</span>         <span class="sd">&quot;&quot;&quot; Returns the cost and flattened gradients for the layer &quot;&quot;&quot;</span>
+<span class="lineno">41</span> 
+<span class="lineno">42</span>         <span class="n">cost</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">abs_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">feed_forward</span><span class="p">()))</span>
+<span class="lineno">43</span>         <span class="n">grads</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">cost</span><span class="o">=</span><span class="n">cost</span><span class="p">,</span> <span class="n">wrt</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+<span class="lineno">44</span> 
+<span class="lineno">45</span>         <span class="k">return</span> <span class="n">cost</span><span class="p">,</span> <span class="n">grads</span></code></pre></div>
+
+<p>When this object is called, it is initialized with the passed weights and data variables. It also has a <code>feed_forward</code> method for getting the normalized activation values for <script type="math/tex">\mathbf{F}</script> as well as a <code>get_cost_grads</code> method that returns the cost (defined above) and the gradients wrt the cost. Note that in this implementation, the gradients are flattened out; this has to do with making Theano compatible with SciPy’s optimization library as will be described next. </p>
+
+<p>Now we need to define a function that, when called, will compile a Theano training function for the <code>SparseFilter</code> based on it’s cost and gradients at each training step as well as a callable function for SciPy’s optimization procedure that does the following steps:</p>
+
+<ol>
+  <li>Reshape the new weights <code>theta_value</code> consistent with how they are initialized in the model and convert to float32</li>
+  <li>Assign those reshaped and converted weights to the model’s weights</li>
+  <li>Get the cost and the gradients based on the compiled training function</li>
+  <li>Convert the weights back to float64 and return</li>
+</ol>
+
+<p>Note that in step #3, the gradients returned are already vectorized based on the <code>get_cost_grads</code> method of the <code>SparseFilter</code> class for compatability with SciPy’s optimization framework. The code for accomplishing this is as follows: </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno"> 1</span> <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="lineno"> 2</span> 
+<span class="lineno"> 3</span> <span class="k">def</span> <span class="nf">training_functions</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">weight_dims</span><span class="p">):</span>
+<span class="lineno"> 4</span> 
+<span class="lineno"> 5</span>     <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno"> 6</span> <span class="sd">    Construct training functions for the model.</span>
+<span class="lineno"> 7</span> 
+<span class="lineno"> 8</span> <span class="sd">    Parameters:</span>
+<span class="lineno"> 9</span> <span class="sd">    ----------</span>
+<span class="lineno">10</span> <span class="sd">    data : ndarray</span>
+<span class="lineno">11</span> <span class="sd">        Training data for unsupervised feature learning.</span>
+<span class="lineno">12</span> 
+<span class="lineno">13</span> <span class="sd">    Returns:</span>
+<span class="lineno">14</span> <span class="sd">    -------</span>
+<span class="lineno">15</span> <span class="sd">    train_fn : list</span>
+<span class="lineno">16</span> <span class="sd">        Callable training function for L-BFGS.</span>
+<span class="lineno">17</span> <span class="sd">    &quot;&quot;&quot;</span>
+<span class="lineno">18</span> 
+<span class="lineno">19</span>     <span class="c"># compile the Theano training function</span>
+<span class="lineno">20</span>     <span class="n">cost</span><span class="p">,</span> <span class="n">grads</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get_cost_grads</span><span class="p">()</span>
+<span class="lineno">21</span>     <span class="n">fn</span> <span class="o">=</span> <span class="n">theano</span><span class="o">.</span><span class="n">function</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">[],</span> <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">cost</span><span class="p">,</span> <span class="n">grads</span><span class="p">],</span>
+<span class="lineno">22</span>                          <span class="n">givens</span><span class="o">=</span><span class="p">{</span><span class="n">model</span><span class="o">.</span><span class="n">x</span><span class="p">:</span> <span class="n">data</span><span class="p">},</span> <span class="n">allow_input_downcast</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="lineno">23</span> 
+<span class="lineno">24</span>     <span class="k">def</span> <span class="nf">train_fn</span><span class="p">(</span><span class="n">theta_value</span><span class="p">):</span>
+<span class="lineno">25</span> 
+<span class="lineno">26</span>         <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno">27</span> <span class="sd">        Creates a shell around training function for L-BFGS optimization</span>
+<span class="lineno">28</span> <span class="sd">        algorithm such that weights are reshaped before calling Theano</span>
+<span class="lineno">29</span> <span class="sd">        training function and outputs of Theano training function are</span>
+<span class="lineno">30</span> <span class="sd">        converted to float64 for SciPy optimization procedure.</span>
+<span class="lineno">31</span> 
+<span class="lineno">32</span> <span class="sd">        Parameters:</span>
+<span class="lineno">33</span> <span class="sd">        ----------</span>
+<span class="lineno">34</span> <span class="sd">        theta_value : ndarray</span>
+<span class="lineno">35</span> <span class="sd">            Output of SciPy optimization procedure (vectorized).</span>
+<span class="lineno">36</span> 
+<span class="lineno">37</span> <span class="sd">        Returns:</span>
+<span class="lineno">38</span> <span class="sd">        -------</span>
+<span class="lineno">39</span> <span class="sd">        c : float64</span>
+<span class="lineno">40</span> <span class="sd">            The cost value for the model at a given iteration.</span>
+<span class="lineno">41</span> <span class="sd">        g : float64</span>
+<span class="lineno">42</span> <span class="sd">            The vectorized gradients of all weights</span>
+<span class="lineno">43</span> <span class="sd">        &quot;&quot;&quot;</span>
+<span class="lineno">44</span> 
+<span class="lineno">45</span>         <span class="c"># reshape the theta value for Theano and convert to float32</span>
+<span class="lineno">46</span>         <span class="n">theta_value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">theta_value</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">weight_dims</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+<span class="lineno">47</span>                                                      <span class="n">weight_dims</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+<span class="lineno">48</span>                                  <span class="n">dtype</span><span class="o">=</span><span class="n">theano</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">floatX</span><span class="p">)</span>
+<span class="lineno">49</span> 
+<span class="lineno">50</span>         <span class="c"># assign the theta value to weights</span>
+<span class="lineno">51</span>         <span class="n">model</span><span class="o">.</span><span class="n">w</span><span class="o">.</span><span class="n">set_value</span><span class="p">(</span><span class="n">theta_value</span><span class="p">,</span> <span class="n">borrow</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="lineno">52</span> 
+<span class="lineno">53</span>         <span class="c"># get the cost and vectorized grads</span>
+<span class="lineno">54</span>         <span class="n">c</span><span class="p">,</span> <span class="n">g</span> <span class="o">=</span> <span class="n">fn</span><span class="p">()</span>
+<span class="lineno">55</span> 
+<span class="lineno">56</span>         <span class="c"># convert values to float64 for SciPy</span>
+<span class="lineno">57</span>         <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="lineno">58</span>         <span class="n">g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+<span class="lineno">59</span> 
+<span class="lineno">60</span>         <span class="k">return</span> <span class="n">c</span><span class="p">,</span> <span class="n">g</span>
+<span class="lineno">61</span> 
+<span class="lineno">62</span>     <span class="k">return</span> <span class="n">train_fn</span></code></pre></div>
+
+<p>Now that we have the model defined and the training environment, we can build the model and visualize what it learns. First we read in some data and preprocess it by centering the mean at zero and whitening to remove pairwise correlations. Finally we convert the data to float32 for GPU compatability. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno">1</span> <span class="kn">from</span> <span class="nn">scipy.io</span> <span class="kn">import</span> <span class="n">loadmat</span>
+<span class="lineno">2</span> <span class="kn">from</span> <span class="nn">scipy.cluster.vq</span> <span class="kn">import</span> <span class="n">whiten</span>
+<span class="lineno">3</span> 
+<span class="lineno">4</span> <span class="n">data</span> <span class="o">=</span> <span class="n">loadmat</span><span class="p">(</span><span class="s">&quot;patches.mat&quot;</span><span class="p">)[</span><span class="s">&#39;X&#39;</span><span class="p">]</span> 		<span class="c"># load in the data</span>
+<span class="lineno">5</span> <span class="n">data</span> <span class="o">-=</span> <span class="n">data</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>			<span class="c"># center data at mean</span>
+<span class="lineno">6</span> <span class="n">data</span> <span class="o">=</span> <span class="n">whiten</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>				<span class="c"># whiten the data</span>
+<span class="lineno">7</span> <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>			<span class="c"># convert to float32</span></code></pre></div>
+
+<p>Next we define the model variables, including the network architecture (i.e., number of neurons and their weights), the initial weights themselves, and a symbolic variable for the data. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno">1</span> <span class="kn">from</span> <span class="nn">init</span> <span class="kn">import</span> <span class="n">init_weights</span>
+<span class="lineno">2</span> 
+<span class="lineno">3</span> <span class="n">weight_dims</span> <span class="o">=</span> <span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>       		<span class="c"># network architecture</span>
+<span class="lineno">4</span> <span class="n">w</span> <span class="o">=</span> <span class="n">init_weights</span><span class="p">(</span><span class="n">weight_dims</span><span class="p">)</span>   		<span class="c"># random weights</span>
+<span class="lineno">5</span> <span class="n">x</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">fmatrix</span><span class="p">()</span>                 		<span class="c"># symbolic variable for data</span></code></pre></div>
+
+<p>The imported method <code>init_weights</code> simply generates random weights with zero mean and unit variance. In addition, these weights are deemed “shared” variables so that they can be updated across all function that they appear in and are designated as float32 for GPU compatability. With this in place, we can then build the Sparse Filtering model and the training functions for its optimization. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno">1</span> <span class="n">model</span> <span class="o">=</span> <span class="n">SparseFilter</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+<span class="lineno">2</span> <span class="n">train_fn</span> <span class="o">=</span> <span class="n">training_functions</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">weight_dims</span><span class="p">)</span></code></pre></div>
+
+<p>Finally, we can train the model using SciPy’s optimization library. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno">1</span> <span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">minimize</span>
+<span class="lineno">2</span> 
+<span class="lineno">3</span> <span class="n">weights</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span><span class="n">train_fn</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">w</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span><span class="o">.</span><span class="n">flatten</span><span class="p">(),</span>
+<span class="lineno">4</span>                    <span class="n">method</span><span class="o">=</span><span class="s">&#39;L-BFGS-B&#39;</span><span class="p">,</span> <span class="n">jac</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+<span class="lineno">5</span>                    <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;maxiter&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span> <span class="s">&#39;disp&#39;</span><span class="p">:</span> <span class="bp">True</span><span class="p">})</span></code></pre></div>
+
+<p>With the maximum number of iterations set at 100, this algorithm converges well under a minute. We can then visualize the representations that it has learned by grabbing the final weights and reshaping them. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno">1</span> <span class="kn">import</span> <span class="nn">visualize</span>
+<span class="lineno">2</span> 
+<span class="lineno">3</span> <span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">weight_dims</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">weight_dims</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+<span class="lineno">4</span> <span class="n">visualize</span><span class="o">.</span><span class="n">drawplots</span><span class="p">(</span><span class="n">weights</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="s">&#39;y&#39;</span><span class="p">,</span> <span class="s">&#39;n&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></code></pre></div>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/sf_weights.png" alt="sf_weights" />
+    
+    
+        <p class="image-caption">Sparse Filtering Weights</p>
+    
+</div>
+
+<p>As we can see, Sparse Filtering learns edge-like feature detectors even withough modeling the data directly. Similar outcomes can also be acquired using standard gradient descent methods. </p>
+
+<h2 id="references">References</h2>
+
+<!-- ## Limitations
+ -->
+<!-- <center><b>References</b></center>
+ -->
+<ol class="bibliography"><li><span id="foldiak1995sparse">Földiák, P., &amp; Young, M. P. (1995). Sparse coding in the primate cortex. <i>The Handbook of Brain Theory and Neural Networks</i>, <i>1</i>, 1064–1068.</span></li>
+<li><span id="hahn2015deep">Hahn, W. E., Lewkowitz, S., Lacombe Jr, D. C., &amp; Barenholtz, E. (2015). Deep learning human actions from video via sparse filtering and locally competitive algorithms. <i>Multimedia Tools And Applications</i>, 1–14.</span></li>
+<li><span id="hyvarinen2009natural">Hyvärinen, A., Hurri, J., &amp; Hoyer, P. O. (2009). <i>Natural Image Statistics: A Probabilistic Approach to Early Computational Vision.</i> (Vol. 39). Springer Science &amp; Business Media.</span></li>
+<li><span id="ngiam2011sparse">Ngiam, J., Chen, Z., Bhaskar, S. A., Koh, P. W., &amp; Ng, A. Y. (2011). Sparse filtering. In <i>Advances in Neural Information Processing Systems</i> (pp. 1125–1133).</span></li>
+<li><span id="olshausen1996emergence">Olshausen, B. A., &amp; Field, D. J. (1996). Emergence of simple-cell receptive field properties by learning a sparse code for natural images. <i>Nature</i>, <i>381</i>(6583), 607–609.</span></li>
+<li><span id="simoncelli2001natural">Simoncelli, E. P., &amp; Olshausen, B. A. (2001). Natural image statistics and neural representation. <i>Annual Review of Neuroscience</i>, <i>24</i>(1), 1193–1216.</span></li></ol>
+ ]]></content>
+  </entry>
+  
+
+</feed>

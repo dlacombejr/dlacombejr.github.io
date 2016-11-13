@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>Visualizing CIFAR-10 Categories with WordNet and NetworkX</title>
+    <meta name="description" content="This is Dan's personal website for  sharing and discussing scientific topics through words and code. Come join the discussion.  
+">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="http://dlacombejr.github.io/programming/2015/09/28/visualizing-cifar-10-categories-with-wordnet-and-networkx.html">
+    <link rel="alternate" type="application/rss+xml" title="My Site RSS" href="/feed.xml" />
+    <link rel="alternate" type="application/atom+xml" title="" href="/atom.xml" />
+
+</head>
+
+
+  <body>
+
+    <!doctype html>
+<html>
+       <!-- mathjax -->
+       <head>
+        <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+       </head>
+
+
+
+<header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Daniel C. LaCombe, Jr</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+<!--         
+          
+            
+            <a class="page-link" href="/about/">About</a>
+            
+          
+        
+          
+            
+            <a class="page-link" href="/atom.xml">Feed</a>
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+            
+          
+        
+          
+        
+          
+        
+          
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+            
+            <a class="page-link" href="/projects/">Projects</a>
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+         -->
+        <a class="page-link" href="/">Home</a>
+        <a class="page-link" href="/about">About</a>
+        <a class="page-link" href="/projects">Projects</a>
+<!--         <a class="page-link" href="/resume">R&eacute;sum&eacute;</a>
+        <a class="page-link" href="/tags">Tags</a>
+        <a class="page-link" href="/contact">Contact</a>
+ --> 
+       <a class="page-link" href="/cv/lacombe_resume_v2.pdf">R&eacutesum&eacute</a>
+       <a class="page-link" href="/atom.xml">Feed</a>
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <!-- Pygments CSS -->
+    <link href="/css/pygments.css" rel="stylesheet">
+
+    <div class="page-content">
+      <div class="wrapper">
+        
+
+<div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Visualizing CIFAR-10 Categories with WordNet and NetworkX</h1>
+    <p class="post-meta">Sep 28, 2015</p>
+  </header>
+
+  <article class="post-content">
+    <p>In this post, I will describe how the object categories from <a href="http://www.cs.toronto.edu/~kriz/cifar.html">CIFAR-10</a> can be visualized as a <a href="https://en.wikipedia.org/wiki/Semantic_network">semantic network</a>. CIFAR-10 is a database of images that is used by the computer vision community to benchmark the performance of different learning algorithms. For some of the work that I’m currently working on, I was interested in the semantic relations between the object categories, as other research has been in the past. We can do this by defining their relations with <a href="https://wordnet.princeton.edu/">WordNet</a> and then visualizing them using <a href="https://networkx.github.io/">NetworkX</a> combined with <a href="http://www.graphviz.org/">Graphviz</a>. </p>
+
+<!--more-->
+
+<h3 id="python-dependencies">Python Dependencies</h3>
+
+<p>Before being able to run the code described in this post, there are a couple of dependencies that must be installed (if not already on your machine). This includes the <a href="https://networkx.github.io/documentation/latest/install.html">NetworkX installation</a>, <a href="http://www.nltk.org/install.html">NLTK installation</a>, and <a href="http://www.graphviz.org/Download..php">Graphviz installation</a>. Also, after installing NLTK, <code>import nltk</code> and use <code>nltk.download()</code> to futher install the <code>wordnet</code> and <code>wordnet_ic</code> databases. You should be all set at this point!</p>
+
+<h2 id="visualizing-cifar-10-semantic-network">Visualizing CIFAR-10 Semantic Network</h2>
+
+<p>For this code demonstration, we do not actually need the CIFAR-10 dataset, but rather its object categories. One alternative would be to download the dataset and use the <code>batches.meta</code> file to import the labels. For simplicity, I instead just list out the categories and put them into a set. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno"> 1</span> <span class="n">categories</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+<span class="lineno"> 2</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;airplane&#39;</span><span class="p">)</span>
+<span class="lineno"> 3</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;automobile&#39;</span><span class="p">)</span>
+<span class="lineno"> 4</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;bird&#39;</span><span class="p">)</span>
+<span class="lineno"> 5</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;cat&#39;</span><span class="p">)</span>
+<span class="lineno"> 6</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;deer&#39;</span><span class="p">)</span>
+<span class="lineno"> 7</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;dog&#39;</span><span class="p">)</span>
+<span class="lineno"> 8</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;frog&#39;</span><span class="p">)</span>
+<span class="lineno"> 9</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;horse&#39;</span><span class="p">)</span>
+<span class="lineno">10</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;ship&#39;</span><span class="p">)</span>
+<span class="lineno">11</span> <span class="n">categories</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s">&#39;truck&#39;</span><span class="p">)</span></code></pre></div>
+
+<p>Now we need to define a function that, beginning with a given object class, recursively adds a node and an edge between it and its <a href="https://en.wikipedia.org/wiki/Hyponymy_and_hypernymy"><em>hypernym</em></a> all the way up to the highest node (i.e., “entity”). I found <a href="http://www.randomhacks.net/2009/12/29/visualizing-wordnet-relationships-as-graphs/">this post</a> that demonstrated code that could do this, so I borrowed it and modified it for my purposes. The major addition was to extend the graph building function to mulitple object categories. We define a function <code>wordnet_graph</code> that builds us our network:</p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno"> 1</span> <span class="kn">import</span> <span class="nn">networkx</span> <span class="kn">as</span> <span class="nn">nx</span>
+<span class="lineno"> 2</span> <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">as</span> <span class="nn">pl</span>
+<span class="lineno"> 3</span> <span class="kn">from</span> <span class="nn">nltk.corpus</span> <span class="kn">import</span> <span class="n">wordnet</span> <span class="k">as</span> <span class="n">wn</span>
+<span class="lineno"> 4</span> 
+<span class="lineno"> 5</span> <span class="k">def</span> <span class="nf">wordnet_graph</span><span class="p">(</span><span class="n">words</span><span class="p">):</span>
+<span class="lineno"> 6</span>     
+<span class="lineno"> 7</span>     <span class="sd">&quot;&quot;&quot;</span>
+<span class="lineno"> 8</span> <span class="sd">    Construct a semantic graph and labels for a set of object categories using </span>
+<span class="lineno"> 9</span> <span class="sd">    WordNet and NetworkX. </span>
+<span class="lineno">10</span> <span class="sd">    </span>
+<span class="lineno">11</span> <span class="sd">    Parameters: </span>
+<span class="lineno">12</span> <span class="sd">    ----------</span>
+<span class="lineno">13</span> <span class="sd">    words : set</span>
+<span class="lineno">14</span> <span class="sd">        Set of words for all the categories. </span>
+<span class="lineno">15</span> <span class="sd">        </span>
+<span class="lineno">16</span> <span class="sd">    Returns: </span>
+<span class="lineno">17</span> <span class="sd">    -------</span>
+<span class="lineno">18</span> <span class="sd">    graph : graph</span>
+<span class="lineno">19</span> <span class="sd">        Graph object containing edges and nodes for the network. </span>
+<span class="lineno">20</span> <span class="sd">    labels : dict</span>
+<span class="lineno">21</span> <span class="sd">        Dictionary of all synset labels. </span>
+<span class="lineno">22</span> <span class="sd">    &quot;&quot;&quot;</span>
+<span class="lineno">23</span>     
+<span class="lineno">24</span>     <span class="n">graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span>
+<span class="lineno">25</span>     <span class="n">labels</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="lineno">26</span>     <span class="n">seen</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+<span class="lineno">27</span>     
+<span class="lineno">28</span>     <span class="k">def</span> <span class="nf">recurse</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+<span class="lineno">29</span>         
+<span class="lineno">30</span>         <span class="sd">&quot;&quot;&quot; Recursively move up semantic hierarchy and add nodes / edges &quot;&quot;&quot;</span>  
+<span class="lineno">31</span> 
+<span class="lineno">32</span>         <span class="k">if</span> <span class="ow">not</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">seen</span><span class="p">:</span>                               <span class="c"># if not seen...</span>
+<span class="lineno">33</span>             <span class="n">seen</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>                                 <span class="c"># add to seen</span>
+<span class="lineno">34</span>             <span class="n">graph</span><span class="o">.</span><span class="n">add_node</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>                      <span class="c"># add node</span>
+<span class="lineno">35</span>             <span class="n">labels</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>     <span class="c"># add label</span>
+<span class="lineno">36</span>             <span class="n">hypernyms</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">hypernyms</span><span class="p">()</span>                   <span class="c"># get hypernyms</span>
+<span class="lineno">37</span> 
+<span class="lineno">38</span>             <span class="k">for</span> <span class="n">s1</span> <span class="ow">in</span> <span class="n">hypernyms</span><span class="p">:</span>                        <span class="c"># for hypernyms</span>
+<span class="lineno">39</span>                 <span class="n">graph</span><span class="o">.</span><span class="n">add_node</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>                 <span class="c"># add node</span>
+<span class="lineno">40</span>                 <span class="n">graph</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">s1</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>         <span class="c"># add edge between</span>
+<span class="lineno">41</span>                 <span class="n">recurse</span><span class="p">(</span><span class="n">s1</span><span class="p">)</span>                             <span class="c"># do so until top</span>
+<span class="lineno">42</span>      
+<span class="lineno">43</span>     <span class="c"># build network containing all categories          </span>
+<span class="lineno">44</span>     <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">words</span><span class="p">:</span>                                  <span class="c"># for all categories</span>
+<span class="lineno">45</span>         <span class="n">s</span> <span class="o">=</span> <span class="n">wn</span><span class="o">.</span><span class="n">synset</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">word</span><span class="p">)</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="s">&#39;.n.01&#39;</span><span class="p">))</span>         <span class="c"># create synset            </span>
+<span class="lineno">46</span>         <span class="n">recurse</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>                                      <span class="c"># call recurse</span>
+<span class="lineno">47</span>     
+<span class="lineno">48</span>     <span class="c"># return the graph and labels    </span>
+<span class="lineno">49</span>     <span class="k">return</span> <span class="n">graph</span> <span class="p">,</span> <span class="n">labels</span></code></pre></div>
+
+<p>Now we’re ready to create the graph for visualizing the semantic network for CIFAR-10. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno">1</span> <span class="c"># create the graph and labels</span>
+<span class="lineno">2</span> <span class="n">graph</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="n">wordnet_graph</span><span class="p">(</span><span class="n">categories</span><span class="p">)</span>
+<span class="lineno">3</span> 
+<span class="lineno">4</span> <span class="c"># draw the graph</span>
+<span class="lineno">5</span> <span class="n">nx</span><span class="o">.</span><span class="n">draw_graphviz</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+<span class="lineno">6</span> <span class="n">pos</span><span class="o">=</span><span class="n">nx</span><span class="o">.</span><span class="n">graphviz_layout</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+<span class="lineno">7</span> <span class="n">nx</span><span class="o">.</span><span class="n">draw_networkx_labels</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">pos</span><span class="o">=</span><span class="n">pos</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
+<span class="lineno">8</span> <span class="n">pl</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></code></pre></div>
+
+<p>The resulting semantic network should look like the following:</p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/CIFAR_10-wordnet.png" alt="CIFAR_10-wordnet" />
+    
+    
+        <p class="image-caption">Semantic Network for CIFAR-10</p>
+    
+</div>
+
+<p>We can see that from <em>entity</em>, the main branch between categories in CIFAR-10 is between artifacts and living things. The object categories themselves tend to be terminal nodes (except for dog). </p>
+
+<h2 id="quantifying-semantic-similarity">Quantifying Semantic Similarity</h2>
+
+<p>We can also use WordNet to quantify the semantic distance between two given object categories. Developing quantifications for semantic similarity is an area of ongoing study and the NLTK includes a couple variations. Here, we use a simple <code>path_similarity</code> quantification which is the length of the shortest path between two nodes, but many others can be implemented by using the <code>wordnet_ic</code> dataset and defining an information content dictionary (see <a href="http://www.nltk.org/howto/wordnet.html">here</a>). </p>
+
+<p>To find the semantic distance between all object categories, we create an empty similarity matrix of size <script type="math/tex">N \times N</script>, where <script type="math/tex">N</script> equals the number of object categoes, and iteratively calculate the semantic similarity for all pair-wise comparisons. </p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno"> 1</span> <span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="lineno"> 2</span> <span class="kn">from</span> <span class="nn">nltk.corpus</span> <span class="kn">import</span> <span class="n">wordnet_ic</span>
+<span class="lineno"> 3</span> 
+<span class="lineno"> 4</span> <span class="c"># empty similarity matix</span>
+<span class="lineno"> 5</span> <span class="n">N</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">categories</span><span class="p">)</span>
+<span class="lineno"> 6</span> <span class="n">similarity_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">N</span><span class="p">,</span> <span class="n">N</span><span class="p">))</span>
+<span class="lineno"> 7</span> 
+<span class="lineno"> 8</span> <span class="c"># initialize counters</span>
+<span class="lineno"> 9</span> <span class="n">x_index</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="lineno">10</span> <span class="n">y_index</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="lineno">11</span> <span class="c"># loop over all pairwise comparisons</span>
+<span class="lineno">12</span> <span class="k">for</span> <span class="n">category_x</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">:</span>
+<span class="lineno">13</span>     <span class="k">for</span> <span class="n">category_y</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">:</span>
+<span class="lineno">14</span>         <span class="n">x</span> <span class="o">=</span> <span class="n">wn</span><span class="o">.</span><span class="n">synset</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">category_x</span><span class="p">)</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="s">&#39;.n.01&#39;</span><span class="p">))</span> 
+<span class="lineno">15</span>         <span class="n">y</span> <span class="o">=</span> <span class="n">wn</span><span class="o">.</span><span class="n">synset</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">category_y</span><span class="p">)</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="s">&#39;.n.01&#39;</span><span class="p">))</span> 
+<span class="lineno">16</span>         <span class="c"># enter similarity value into the matrix</span>
+<span class="lineno">17</span>         <span class="n">similarity_matrix</span><span class="p">[</span><span class="n">x_index</span><span class="p">,</span> <span class="n">y_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">path_similarity</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> 
+<span class="lineno">18</span>         <span class="c"># iterate x counter</span>
+<span class="lineno">19</span>         <span class="n">x_index</span> <span class="o">+=</span> <span class="mi">1</span>
+<span class="lineno">20</span>     <span class="c"># reinitialize x counter and iterate y counter   </span>
+<span class="lineno">21</span>     <span class="n">x_index</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="lineno">22</span>     <span class="n">y_index</span> <span class="o">+=</span> <span class="mi">1</span>
+<span class="lineno">23</span> 
+<span class="lineno">24</span> <span class="c"># convert the main diagonal of the matrix to zeros       </span>
+<span class="lineno">25</span> <span class="n">similarity_matrix</span> <span class="o">=</span> <span class="n">similarity_matrix</span> <span class="o">*</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span></code></pre></div>
+
+<p>We can then visualize this matrix using Pylab. I found <a href="http://nbviewer.ipython.org/gist/joelotz/5427209">this notebook</a> that contained some code for generating a nice comparison matrix. I borrowed that code and only made slight modifications for the current purposes. This code is as follows:</p>
+
+<div class="highlight"><pre><code class="language-python" data-lang="python"><span class="lineno"> 1</span> <span class="c"># Plot it out</span>
+<span class="lineno"> 2</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="lineno"> 3</span> <span class="n">heatmap</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">pcolor</span><span class="p">(</span><span class="n">similarity_matrix</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">pl</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">Blues</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+<span class="lineno"> 4</span> 
+<span class="lineno"> 5</span> <span class="c"># Format</span>
+<span class="lineno"> 6</span> <span class="n">fig</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">gcf</span><span class="p">()</span>
+<span class="lineno"> 7</span> <span class="n">fig</span><span class="o">.</span><span class="n">set_size_inches</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">11</span><span class="p">)</span>
+<span class="lineno"> 8</span> 
+<span class="lineno"> 9</span> <span class="c"># turn off the frame</span>
+<span class="lineno">10</span> <span class="n">ax</span><span class="o">.</span><span class="n">set_frame_on</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+<span class="lineno">11</span> 
+<span class="lineno">12</span> <span class="c"># put the major ticks at the middle of each cell</span>
+<span class="lineno">13</span> <span class="n">ax</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">similarity_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">minor</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="lineno">14</span> <span class="n">ax</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">similarity_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">minor</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="lineno">15</span> 
+<span class="lineno">16</span> <span class="c"># want a more natural, table-like display</span>
+<span class="lineno">17</span> <span class="n">ax</span><span class="o">.</span><span class="n">invert_yaxis</span><span class="p">()</span>
+<span class="lineno">18</span> <span class="n">ax</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">tick_top</span><span class="p">()</span>
+<span class="lineno">19</span> 
+<span class="lineno">20</span> <span class="c"># Set the labels</span>
+<span class="lineno">21</span> 
+<span class="lineno">22</span> <span class="c"># label source:https://en.wikipedia.org/wiki/Basketball_statistics</span>
+<span class="lineno">23</span> <span class="n">labels</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="lineno">24</span> <span class="k">for</span> <span class="n">category</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">:</span>
+<span class="lineno">25</span>     <span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">category</span><span class="p">)</span>
+<span class="lineno">26</span> 
+<span class="lineno">27</span> 
+<span class="lineno">28</span> <span class="c"># note I could have used nba_sort.columns but made &quot;labels&quot; instead</span>
+<span class="lineno">29</span> <span class="n">ax</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">minor</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="lineno">30</span> <span class="n">ax</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">minor</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="lineno">31</span> 
+<span class="lineno">32</span> <span class="c"># rotate the x-axis labels</span>
+<span class="lineno">33</span> <span class="n">pl</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="n">rotation</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
+<span class="lineno">34</span> 
+<span class="lineno">35</span> <span class="n">ax</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+<span class="lineno">36</span> 
+<span class="lineno">37</span> <span class="c"># Turn off all the ticks</span>
+<span class="lineno">38</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">gca</span><span class="p">()</span>
+<span class="lineno">39</span> <span class="n">ax</span><span class="o">.</span><span class="n">set_aspect</span><span class="p">(</span><span class="s">&#39;equal&#39;</span><span class="p">,</span> <span class="n">adjustable</span><span class="o">=</span><span class="s">&#39;box&#39;</span><span class="p">)</span>
+<span class="lineno">40</span> 
+<span class="lineno">41</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">ax</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">get_major_ticks</span><span class="p">():</span>
+<span class="lineno">42</span>     <span class="n">t</span><span class="o">.</span><span class="n">tick1On</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="lineno">43</span>     <span class="n">t</span><span class="o">.</span><span class="n">tick2On</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="lineno">44</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">ax</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">get_major_ticks</span><span class="p">():</span>
+<span class="lineno">45</span>     <span class="n">t</span><span class="o">.</span><span class="n">tick1On</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="lineno">46</span>     <span class="n">t</span><span class="o">.</span><span class="n">tick2On</span> <span class="o">=</span> <span class="bp">False</span></code></pre></div>
+
+<p>This generates the following visualization of the semantic similiary matrix for the CIFAR-10 object categories:</p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+        <img src="/assets/semantic_similarity_matrix.png" alt="semantic_similarity_matrix" />
+    
+    
+        <p class="image-caption">Semantic Similarity Matrix for CIFAR-10 Categories</p>
+    
+</div>
+
+<p>In this image, bluer colors represent higher similarity (neglecting the main diagonal which was forced to zero for better visualization). As is apparent, all of the object categories belonging to either the artifact or living_thing major branches are closely similar to one another and very different from objects in the opposite branch.  Now these semantic distances between object categories can be used for many other types of analyses.</p>
+
+  </article>
+
+
+        
+            
+                
+            
+                
+                    
+                
+            
+            
+                
+            
+        
+
+        
+            
+        
+
+        <p id="post-meta"><i><small>Posted  in <span class="label" style="background-color:#CEE3F6"><a href="/blog/category/programming/">Programming</a></span></small></i></p>
+
+</div>
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES * * */
+    var disqus_shortname = 'dlacombejr';
+    
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-67244612-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+      </div>
+    </div>
+
+    <div class="footer-nav">
+  <a class="page-link" href="/">home</a>
+  <a class="page-link" href="/about">about</a>
+  <a class="page-link" href="/projects">projects</a>
+  <a class="page-link" href="/cv/lacombe_CV.pdf">CV</a>
+  <a class="page-link" href="/atom.xml">Feed</a>
+</div>
+
+<footer class="site-footer">
+
+  <div class="wrapper">
+
+<!--     <h2 class="footer-heading">Daniel C. LaCombe, Jr</h2>
+ -->
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Daniel C. LaCombe, Jr</li>
+          <li><a href="mailto:daniel.lacombe.jr@gmail.com">daniel.lacombe.jr@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/dlacombejr">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">dlacombejr</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/daniellacombejr">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">daniellacombejr</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">This is Dan's personal website for  sharing and discussing scientific topics through words and code. Come join the discussion.  
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-67244612-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+<!-- mathjax -->
+<!-- <script type="text/javascript" src'"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMMl"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({tex2jax: {inlineMath: [['$', '$''], ['\\(','\\)']]}});
+</script? -->
