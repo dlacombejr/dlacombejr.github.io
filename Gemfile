@@ -1,0 +1,11 @@
+source 'https://rubygems.org'
+
+gem 'jekyll' #,     '=0.12.0'
+gem 'kramdown'
+gem 'coderay'
+gem 'rake'
+gem 'thor'
+gem 'activesupport'
+gem 'stringex'
+gem 'jekyll-scholar'
+gem 'rake-jekyll'

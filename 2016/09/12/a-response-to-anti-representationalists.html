@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width initial-scale=1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <title>A Response to Anti-Representationalists</title>
+    <meta name="description" content="This is Dan's personal website for  sharing and discussing scientific topics through words and code. Come join the discussion.  
+">
+
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="canonical" href="http://dlacombejr.github.io/2016/09/12/a-response-to-anti-representationalists.html">
+    <link rel="alternate" type="application/rss+xml" title="My Site RSS" href="/feed.xml" />
+    <link rel="alternate" type="application/atom+xml" title="" href="/atom.xml" />
+
+</head>
+
+
+  <body>
+
+    <!doctype html>
+<html>
+       <!-- mathjax -->
+       <head>
+        <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+       </head>
+
+
+
+<header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Daniel C. LaCombe, Jr</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+<!--         
+          
+            
+            <a class="page-link" href="/about/">About</a>
+            
+          
+        
+          
+            
+            <a class="page-link" href="/atom.xml">Feed</a>
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+            
+          
+        
+          
+        
+          
+        
+          
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+            
+            <a class="page-link" href="/projects/">Projects</a>
+            
+          
+        
+          
+        
+          
+        
+          
+        
+          
+         -->
+        <a class="page-link" href="/">Home</a>
+        <a class="page-link" href="/about">About</a>
+        <a class="page-link" href="/projects">Projects</a>
+<!--         <a class="page-link" href="/resume">R&eacute;sum&eacute;</a>
+        <a class="page-link" href="/tags">Tags</a>
+        <a class="page-link" href="/contact">Contact</a>
+ --> 
+       <a class="page-link" href="/cv/lacombe_resume_v2.pdf">R&eacutesum&eacute</a>
+       <a class="page-link" href="/atom.xml">Feed</a>
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <!-- Pygments CSS -->
+    <link href="/css/pygments.css" rel="stylesheet">
+
+    <div class="page-content">
+      <div class="wrapper">
+        
+
+<div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">A Response to Anti-Representationalists</h1>
+    <p class="post-meta">Sep 12, 2016</p>
+  </header>
+
+  <article class="post-content">
+    <p>Coming from a background in cognitive science, where representationalist positions are the norm, I have read literature on non-representationalist viewpoints such as Lawrence Shapiro’s “Embodied Cognition” and O’Regan’s work on Sensorimotor Theory of Consiousness to put my work in perspective. These works have not had a major impact on my research, as representations of some form still seemed necessary for many of the examples they cited. I now work daily on artificial neural networks and “deep learning” is part of my basic vocabulary. Recently, I’ve come across <a href="https://aeon.co/essays/your-brain-does-not-process-information-and-it-is-not-a-computer">this article</a> from <a href="https://aeon.co/">aeon</a> multiple times through media outlets such as <a href="https://www.reddit.com/search?q=Epstein+brain+is+not+a+computer&amp;restrict_sr=&amp;sort=relevance&amp;t=all">Reddit</a> and Facebook. In the essay, the <!-- renowned --> much respected Dr. Robert Epstein voices his position against using computational metaphors for the brain. Here, I give my response to his, and more general claims surrounding this issue, from my background in cognitive psychology and relatively short experience conducting research in machine learning and artificial intelligence. Please share your thoughts!</p>
+
+<!--more-->
+
+<h2 id="summary-of-the-article">Summary of The Article</h2>
+
+<p>The main point that Epstein attempts to convey in this article is that we are confusing ourselves about how the brain works by using our most advanced technology, computers, as a metaphor – what he refers to as the information processing (IP) metaphor. He notes that we do not have, and never develop, the components that are essential to modern day computers, such as software, models, or memory buffers. Indeed, computers process information by moving around large arrays of data encoded in bits that are then processed using an algorithm. This is not what humans do – a given. Challenging researchers in the field, he finds that basically none can explain the brain without appealing to the IP metaphor, which he reasonably sees as a problem. Crucially, he points out that the metaphor is based on a faulty syllogism whereby we conclude “…all entities that are capable of behaving intelligently are information processors”. Just as previous metaphors for the brain seem silly to us now, so will that of the IP metaphor in the future. </p>
+
+<h2 id="first-some-definitions">First Some Definitions</h2>
+
+<p>As with most debates, it is important to define some important terms so that disagreements are not based in semantics. The following are definitions for key terms used in Epstein’s argument and that I will reference throughout this reply. These are surely debatable, but it was the best I could do here. </p>
+
+<ul>
+  <li>
+    <p><strong>algorithm</strong> - <a href="https://en.wikipedia.org/wiki/Algorithm">”…a self-contained step-by-step set of operations to be performed”</a></p>
+  </li>
+  <li>
+    <p><strong>operation</strong> - in mathematics, <a href="https://en.wikipedia.org/wiki/Operation_(mathematics)">”…a calculation from zero or more input values (called operands) to an output value.”</a></p>
+  </li>
+  <li>
+    <p><strong>information processing</strong> - in the computing sense, <a href="https://en.wikipedia.org/wiki/Information_processing">”…the use of algorithms to transform data…”</a></p>
+  </li>
+  <li>
+    <p><strong>information</strong> - the resolver of uncertainty. we can say that data that is completely random, is uncertain, and has no information. if information of some form exists in data, it can resolve the uncertainty with respect to outputs</p>
+  </li>
+  <li>
+    <p><strong>data</strong> - the quantities, characters, or symbols on which operations are performed by a computer</p>
+  </li>
+  <li>
+    <p><strong>representation</strong> - from a cognitive viewpoint (which Epstein is likely to be more familiar with), is that of an <a href="https://en.wikipedia.org/wiki/Mental_representation">“internal cognitive symbol that represents external reality”</a>; from machine learning, <a href="http://www.cl.uni-heidelberg.de/courses/ws14/deepl/BengioETAL12.pdf">”…learning representations of the data that make it easier to extract useful information when building classifiers or other predictors.”</a> </p>
+  </li>
+  <li>
+    <p><strong>computer</strong> - <a href="https://en.wikipedia.org/wiki/Computer">”…a device that can be instructed to carry out an arbitrary set of arithmetic or logical operations automatically.”</a>; more generally, we can say “one that computes”</p>
+  </li>
+  <li>
+    <p><strong>computation</strong> - <a href="https://en.wikipedia.org/wiki/Computation">”…any type of calculation … that follows a well-defined model understood and expressed as, for example, an algorithm.”</a></p>
+  </li>
+</ul>
+
+<p>These definitions were not cherry picked to support my position, and when appropriate, I gave multiple definitions to reflect use-specific cases. </p>
+
+<h2 id="next-some-thoughts">Next Some Thoughts</h2>
+
+<p>I appreciate Epstein’s challenge to the IP metaphor and recognize the higher chance of it being invalid rather than the final answer to understanding the brain given the history of failed metaphorical applications to brain functioning. Figures such as Epstein are a necessary component to scientific progress, as we must challenge our scientific paradigms and inspect how they bias the observations we make.  However, as someone that builds artificial neural networks, I (perhaps erroneously) remain convinced of the brain’s role in computation <!-- (e.g., weighted sums of inputs, activation functions) --> despite the evidence he and others provide. Here I attempt to illustrate how most of the examples he cites are straw man by conveying an inaccurate view of how the IP metaphor is seen by those that take seriously the primary role of computation in artificial general intelligence and its relation to the brain. </p>
+
+<h3 id="the-information-processing-metaphor">The Information Processing Metaphor</h3>
+
+<p>Based on our definition above, information processing involves the transformation of data using algorithms that are themselves a set of sequential operations. From this, Epstein’s understanding of how algorithms and computations relate to brain function appears immediately outdated and misguided. He strongly emphasizes that an algorithm is about the set of rules in machine code that dictates how data is stored, transfered, and received from hardware elements such as buffers, devices, and registers. Yes, this is an algorithm, but not the one that we are interested in when trying to draw connections to the brain. These aspects he highlights are details of implementation specific to conventional computers <!-- (see memristors for the next generation of computing)  -->that those simulating neural nets, for example, would never argue takes place in the brain. </p>
+
+<p>One aspect of his overly narrow view of computation is a veridical, discrete, and easily accessible memory store. To illustrate that we don’t have any type of memory bank like a computer, he describes a demonstration where an intern is asked to draw a dollar bill. When she must do so from memory, she is unable to draw the object with much detail. In contrast, when she is given the opportunity to look at the dollar bill, she can draw it in great detail. </p>
+
+<blockquote>
+  <p>“Jinny was as surprised by the outcome as you probably are…”</p>
+</blockquote>
+
+<p>Not really. <!-- Sorry, but this says more about Jinny's visual artistic skills (at least specifically to drawing currency) than how the brain works. --> Besides this being the expected outcome, common findings in unsupervised learning predict that outcome, producing “fuzzy” generated images when prompted. On the other hand, the most recent state-of-the-art in generative modeling, <a href="https://github.com/Newmu/dcgan_code">adversarial networks</a>, are more akin to what an artist might do – producing depictions that can be compared to reality until they match more closely (at least with respect to realism). </p>
+
+<blockquote>
+  <p>Even if she spent time studying the details, “…no image of the dollar bill has in any sense been ‘stored’ in Jinny’s brain.” </p>
+</blockquote>
+
+<!-- This is still not a problem for the information processing view. -->
+<p>Artificial neural networks, and likely biological, for that matter, don’t have images stored inside them; they have abstract, identity-preserving translation-invariant, representations learned from input data. In fact, the representations themselves are a form of memory. Presumably what Jinny would be doing in those moments of studying is temporarily strengthening connections in the network hierarchy that would generate a dollar bill image. Below, we will see how this is likely distributed across the network – unlike a modern computer, yet still computational in nature. </p>
+
+<p>Let us adopt the general (non-spiking, feed-forward) artificial neural network (aNN) as our main example of modeling the brain from an information processing perspective. At their core, aNNs are algorithms (i.e., a sequence of operations, such as weighted sums and linear rectifiers), which are arguably biologically plausible (i.e., synapses with inhibitory and excitatory strengths that are thresholded), yet clearly limited in scope. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+    <a href="http://www.theprojectspot.com/images/post-assets/an.jpg" title="a" target="_blank">
+    
+        <img src="/assets/ann.jpg" alt="a" />
+    
+    </a>
+    
+    
+        <p class="image-caption">Schematic of a single neuronal unit</p>
+    
+</div>
+
+<p>Deep neural networks, more specifically, are simply a hierarchical series of operations that take data (e.g., images analogous to retinal pattern of activation) and transform them through each layer, increasingly projecting them into a space that is more valuable for learning and making decisions. This is nothing more than an algorithm, and there is good reason to believe that it is very similar to what our brains are doing. </p>
+
+<p>For example, a convolutional neural network convolves filters across an image. Certainly our brains do not perform convolutions, but rather this reflects certain assumptions that allow us to simulate them in software. Specifically, images translate across space and because we can move our heads and eyes, similar basic features can occur anywhere in the visual field. Therefore it would make sense to have similar basic features tiled across the early visual cortex with receptive fields at different locations. Indeed this is what we see in biological brains. Although an oversimplification that undoubtedly has biologically implausible limitations, it serves to make the point that these computations are abstractions of primitives (e.g., weighted sums) that can easily be physically implemented. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+    <a href="http://www.kdnuggets.com/wp-content/uploads/deep-learning.png" title="a" target="_blank">
+    
+        <img src="/assets/cnn.png" alt="a" />
+    
+    </a>
+    
+    
+        <p class="image-caption">Example of operations involved in a deep convolutional neural network</p>
+    
+</div>
+
+<!-- When I want the neural net to learn, I take an image from the "external world" (i.e., on a hard drive) and expose it to the network passing it upwards through multiple layers of rudimentary operations that produce activation values at all levels of the hierarchy. These activation values are ephemeral in the real world and unfold across time (see LCA). To perceive then is to only have information pass through a network within which memory is latent. 
+ -->
+
+<!-- Moreover, these processes that he appeals to -- copying and transferring -- are unlikely to be employed in future computers, are computationally demanding, and are just not what biology is doing. This is not a problem for the IP metaphor. See memristers for example (https://www.technologyreview.com/s/537211/a-better-way-to-build-brain-inspired-chips/). 
+ -->
+
+<p>Now, in the above drawing demonstration, Epstein uses the outcome as an argument against the existence of “representations” that exist as stored memories, particularly in individual neurons. Indeed, as Epstein states and surely knows, no one in contemporary computational neuroscience would make such an absurd assertion. <!-- Asking where a representation or memory is in the brain is like asking where a single ripple is in the ocean. But beyond this, there are good functional reasons for believing that intelligent systems would not employ such a strategy.  --> A very common concept in computational neuroscience is that of a <em>sparse distributed representation</em>, which is very similar to the idea of <em>parallel distributed processing</em>. In this framework, inputs can be represented with a very small number of features that are distributed. Additionally, memories (which may be representations themselves as described above) are not discrete, but are distributed. Therefore, “deleting” one memory, if even possible, may involve removing enumerable others. </p>
+
+<p>From <a href="http://dlacombejr.github.io/programming/2015/09/13/sparse-filtering-implemenation-in-theano.html">my previous blog post</a>:</p>
+
+<blockquote>
+  <p>A sparse coding scheme also has logically demonstrable functional advantages over the other possible types (i.e., local and dense codes) in that it has high representational and memory capacites (representatoinal capacity grows exponentially with average activity ratio and short codes do not occupy much memory), fast learning (only a few units have to be updated), good fault tolerance (the failure or death of a unit is not entirely crippling), and controlled interference (many representations can be active simultaneously; Földiák &amp; Young, 1995).</p>
+</blockquote>
+
+<p>Thus, when we look at the deep neural network below, the image of the face or cat that points at a particular image does not mean that an “image” is stored at that location. This image was generated by synthesizing an input that maximized that unit’s activation. But because that node’s activation is contingent upon a complex weighting of all the connections before it, it would be more accurate to say that the representation is distributed across all the connections before it, not in one location. Also note that the synthesized image is fuzzy and shows that it could be insensitive to translations. </p>
+
+<!-- _includes/image.html -->
+<div class="image-wrapper">
+    
+    <a href="http://www.kdnuggets.com/wp-content/uploads/deep-learning.png" title="a" target="_blank">
+    
+        <img src="/assets/DeepNetwork.png" alt="a" />
+    
+    </a>
+    
+    
+        <p class="image-caption">Deep network with example representational units</p>
+    
+</div>
+
+<!-- I surely hope his writing reflects more an attempt to attract a layman audience than to convince those in the academic community. 
+
+artists
+compression
+average
+perceiving vs generating
+
+ -->
+<p>In fact, he said it himself.</p>
+
+<blockquote>
+  <p>“For any given experience, orderly change could involve a thousand neurons, a million neurons or even the entire brain, with the pattern of change different in every brain.”</p>
+</blockquote>
+
+<p>This is exactly what neural network simulations do; this fact does not preclude computation. </p>
+
+<h3 id="a-new-framework">A New Framework?</h3>
+
+<p>After this example, he attempts “to build the framework of a metaphor-free theory of intelligent human behaviour” that I find unsuccessful and only reframes the existing IP metaphor. In particular, he notes that we learn by making observations of paired (i.e., correlated) events and we are punished or rewarded based on how we respond to them. These are not new concepts to the field of machine learning and artificial intelligence. In fact, the success of almost all machine learning applications hinges on learning patterns built from correlated primitives that allow for good decisions to be made. </p>
+
+<p>As an illustration he submits that when a new song is learned, instead of “storing” it, the brain has simply “changed”. It’s not clear how this is at all different. What has changed? And how? In a computer I may save a new song as a discrete file on my hard drive. But if I want a neural network to learn it and be able to generate it, the “storing” would involve changing weights distributed across the network (as stated above). For example, if I already have existing knowledge of songs, many of which have similar components, I can represent this new song as a distributed code of sparse components that is not located in one single place. These components will be coupled, thereby creating a memory (or representation) that is distributed across the very thing that perceives it and produces it. </p>
+
+<p>To give a final illustration, he cites a commonly referenced example of catching a fly ball. Epstein, as well as others, argue that:</p>
+
+<blockquote>
+  <p>The IP perspective requires the player to formulate an estimate of various initial conditions of the ball’s flight – the force of the impact, the angle of the trajectory, that kind of thing – then to create and analyse an internal model of the path along which the ball will likely move, then to use that model to guide and adjust motor movements continuously in time in order to intercept the ball.</p>
+</blockquote>
+
+<p>Now, granted that this is from a 1995 article, this is an outdated view. As someone that takes the information processing view of the brain, I would never say that catching a fly ball involves explicitly calculating trajectory. In fact, keeping the ball in constant relation to the surrounding is likely exactly what a neural network agent using reinforcement learning would learn to do if it were trained to do so based on visual input. Furthermore, it would learn representations specific to those aspects (i.e., the ball, the horizon), and ultimately be calculating trajectory implicitly. It is not clear how this could be done “completely free of computations, representations and algorithms”, as Epstein and others claim. </p>
+
+<p>He argues that “because neither ‘memory banks’ nor ‘representations’ of stimuli exist in the brain, and because all that is required for us to function in the world is for the brain to change in an orderly way as a result of our experiences, there is no reason to believe that any two of us are changed the same way by the same experience.” It is just as easy to see that no experience would be the same due to distributed representations of “fuzzy” memories that have been compressed based on the existing network. IP prevails. </p>
+
+<!-- He suggests that the IP approach cannot account for the uniqueness of experiences. This is wrong. We know that when training neural networks from scratch, what they learn -- their representations -- will diverge based on random initializations of the weights. 
+ -->
+<!-- ### The Embodiment Problem
+ -->
+<!-- He appeals to the embodiment argument to undermine the IP metaphor. 
+
+"So to measure the output of a system does not necessarily tell you about the process that produced it." - Craig
+
+Yes, but creating a model that embodies many of the details we observe in biology and having that model produce behavior that is again consistent with other observations is good evidence. 
+
+facilitating research / generating testable predictions
+
+I will leave consciousness out of the question here
+ -->
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>Epstein’s argument appears to be based on a erroneous, outdated, and rigid view of information processing that is unlike what those like myself take it to be. Unlike what he suggests, brains do not have perfect memory stores and representations are distributed, not local. Many simulated neural networks have exactly these features. What he has done is conflated computer with computation. Ultimately, artificial neural networks can be implemented in hardware, using the same operations as in the simulation, but without any of the other aspects involved in conventional computers, such as data transferring. Maybe if Epstein understood this, he would have to update his position.</p>
+
+<p>At the closing of his essay, Epstein makes a rather insulting statement:</p>
+
+<blockquote>
+  <p>“The IP metaphor has had a half-century run, producing few, if any, insights along the way.” </p>
+</blockquote>
+
+<p>This is a slap in the face to the fields of computational neuroscience, neuromorphic computing, and artificial intelligence, to name a few. The field of artificial intelligence, specifically, has been greatly guided by principles derived from our understanding of the brain. To ignore what those fields have to say about cognition is a dire mistake and rejecting the IP metaphor upon which they are founded removes all chance of such a dialogue. </p>
+
+<p>Ultimately, I can’t explain the brain either without appealing to the IP metaphor. But it appears neither can he. I see that the IP metaphor is based on invalid reasoning, but it is the best we have to go on and amazingly deep insights have been made through it. There is also something special, and universal about IP that, at least to me, makes it seem very likely to be implemented in the brain. </p>
+
+<blockquote>
+  <p>“We are organisms, not computers.” </p>
+</blockquote>
+
+<p>Well, maybe we’re both. At the very least we’re doing some computation. And the thing about computation is that it transcends the medium in which it is implemented – be it flesh or silicon. <!-- This particular representationalist remains unconvinced by contrarian arguments from Epstein and others of that camp.
+ --></p>
+
+<p><a href="http://lukependergrass.work/blog/the-information-processing-brain">Don’t push DELETE just yet.</a></p>
+
+<!-- --- -->
+
+<!-- [^fn-biological_accuracy]: Although these models have the advantage of being driven by natural image statistics, they also suffer from some biological implausibility <a href="#antolik2011development">(Antolı́k Ján &amp; Bednar, 2011)</a>.
+ -->
+
+  </article>
+
+
+        
+            
+        
+
+        
+            
+        
+
+        <p id="post-meta"><i><small>Posted </small></i></p>
+
+</div>
+
+<div id="disqus_thread"></div>
+<script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES * * */
+    var disqus_shortname = 'dlacombejr';
+    
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-67244612-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+      </div>
+    </div>
+
+    <div class="footer-nav">
+  <a class="page-link" href="/">home</a>
+  <a class="page-link" href="/about">about</a>
+  <a class="page-link" href="/projects">projects</a>
+  <a class="page-link" href="/cv/lacombe_CV.pdf">CV</a>
+  <a class="page-link" href="/atom.xml">Feed</a>
+</div>
+
+<footer class="site-footer">
+
+  <div class="wrapper">
+
+<!--     <h2 class="footer-heading">Daniel C. LaCombe, Jr</h2>
+ -->
+    <div class="footer-col-wrapper">
+      <div class="footer-col  footer-col-1">
+        <ul class="contact-list">
+          <li>Daniel C. LaCombe, Jr</li>
+          <li><a href="mailto:daniel.lacombe.jr@gmail.com">daniel.lacombe.jr@gmail.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-2">
+        <ul class="social-media-list">
+          
+          <li>
+            <a href="https://github.com/dlacombejr">
+              <span class="icon  icon--github">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M7.999,0.431c-4.285,0-7.76,3.474-7.76,7.761 c0,3.428,2.223,6.337,5.307,7.363c0.388,0.071,0.53-0.168,0.53-0.374c0-0.184-0.007-0.672-0.01-1.32 c-2.159,0.469-2.614-1.04-2.614-1.04c-0.353-0.896-0.862-1.135-0.862-1.135c-0.705-0.481,0.053-0.472,0.053-0.472 c0.779,0.055,1.189,0.8,1.189,0.8c0.692,1.186,1.816,0.843,2.258,0.645c0.071-0.502,0.271-0.843,0.493-1.037 C4.86,11.425,3.049,10.76,3.049,7.786c0-0.847,0.302-1.54,0.799-2.082C3.768,5.507,3.501,4.718,3.924,3.65 c0,0,0.652-0.209,2.134,0.796C6.677,4.273,7.34,4.187,8,4.184c0.659,0.003,1.323,0.089,1.943,0.261 c1.482-1.004,2.132-0.796,2.132-0.796c0.423,1.068,0.157,1.857,0.077,2.054c0.497,0.542,0.798,1.235,0.798,2.082 c0,2.981-1.814,3.637-3.543,3.829c0.279,0.24,0.527,0.713,0.527,1.437c0,1.037-0.01,1.874-0.01,2.129 c0,0.208,0.14,0.449,0.534,0.373c3.081-1.028,5.302-3.935,5.302-7.362C15.76,3.906,12.285,0.431,7.999,0.431z"/>
+                </svg>
+              </span>
+
+              <span class="username">dlacombejr</span>
+            </a>
+          </li>
+          
+
+          
+          <li>
+            <a href="https://twitter.com/daniellacombejr">
+              <span class="icon  icon--twitter">
+                <svg viewBox="0 0 16 16">
+                  <path fill="#828282" d="M15.969,3.058c-0.586,0.26-1.217,0.436-1.878,0.515c0.675-0.405,1.194-1.045,1.438-1.809
+                  c-0.632,0.375-1.332,0.647-2.076,0.793c-0.596-0.636-1.446-1.033-2.387-1.033c-1.806,0-3.27,1.464-3.27,3.27 c0,0.256,0.029,0.506,0.085,0.745C5.163,5.404,2.753,4.102,1.14,2.124C0.859,2.607,0.698,3.168,0.698,3.767 c0,1.134,0.577,2.135,1.455,2.722C1.616,6.472,1.112,6.325,0.671,6.08c0,0.014,0,0.027,0,0.041c0,1.584,1.127,2.906,2.623,3.206 C3.02,9.402,2.731,9.442,2.433,9.442c-0.211,0-0.416-0.021-0.615-0.059c0.416,1.299,1.624,2.245,3.055,2.271 c-1.119,0.877-2.529,1.4-4.061,1.4c-0.264,0-0.524-0.015-0.78-0.046c1.447,0.928,3.166,1.469,5.013,1.469 c6.015,0,9.304-4.983,9.304-9.304c0-0.142-0.003-0.283-0.009-0.423C14.976,4.29,15.531,3.714,15.969,3.058z"/>
+                </svg>
+              </span>
+
+              <span class="username">daniellacombejr</span>
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+
+      <div class="footer-col  footer-col-3">
+        <p class="text">This is Dan's personal website for  sharing and discussing scientific topics through words and code. Come join the discussion.  
+</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+
+
+  </body>
+
+</html>
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-67244612-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+<!-- mathjax -->
+<!-- <script type="text/javascript" src'"http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMMl"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({tex2jax: {inlineMath: [['$', '$''], ['\\(','\\)']]}});
+</script? -->
