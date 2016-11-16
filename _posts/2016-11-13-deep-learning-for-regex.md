@@ -32,7 +32,7 @@ Here, this RegEx looks for pre-defined characters in fields surrounding the “@
 
 The training data consisted of ~54,000 examples with the following four entries: [id, product_title, product_description, mpn]; test data was the same except for the omission of MPN field. Upon inspection of the data, I found that the MPN was, in almost all cases, present in either the product title or description, if not both. It also became evident to me that this was a hard problem as there were many other “distractors” that looked very similar to MPNs but were not marked as the target (for example, in the above Graphics Processing Unit product, “Gddr5x” looks a lot like other MPNs that existed in the training set). Given that the problem was to extract the MPN from the other fields, I set the input as a concatenation of the product title and description and set the target (or output) as the MPN.
 
-Now that I had determined what my inputs and outputs were, I needed to determine some sort of embedding so that I could use a neural network. Because this was not a usual Natural Language Processing problem do the presence of MPN codes, HTML snippets and other odd characters, common choices such as [word2vec](https://en.wikipedia.org/wiki/Word2vec) were not going to be suitable (correct me if I’m wrong here). I fortunately had a rock-climbing buddy, Joseph Prusa, that had been working with character-wise embeddings for sentiment analysis. He very kindly shared his embedding code, and after some custom-tailoring to my problem, I had an embedding solution.
+Now that I had determined what my inputs and outputs were, I needed to determine some sort of embedding so that I could use a neural network. Because this was not a usual Natural Language Processing problem do the presence of MPN codes, HTML snippets and other odd characters, common choices such as [word2vec](https://en.wikipedia.org/wiki/Word2vec) were not going to be suitable (correct me if I’m wrong here). I fortunately had a rock-climbing buddy, Joseph Prusa, that had been working with character-wise embeddings for sentiment analysis {% cite prusaEmbeddings2016 %}. He very kindly shared his embedding code, and after some custom-tailoring to my problem, I had an embedding solution.
 
 The embedding procedure takes each character and embeds it as an 8-bit binary vector. For example the string “EVGA NVIDIA GeForce GTX 1080 Founders Edition 8gb Gddr5x 08GP46180KR” from the above example would be represented like such:
 
@@ -79,3 +79,7 @@ One thing that I noticed as I was scrambling to make submissions was that the mo
 ## Conclusions
 
 This was a fun challenge for me and I found it satisfying to place especially given that I had not really worked on this type of problem before. Sorry in advance for adding to the Deep Learning hype, but I found this to be another interesting application of said methods to a domain that probably doesn't see much of these techniques used, again showing the general abilities of Deep Learning. Hope this helps someone with a similar problem.
+
+## References
+
+{% bibliography --cited %}
